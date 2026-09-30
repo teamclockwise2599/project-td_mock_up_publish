@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet">
-<link href="../shared/ui.css" rel="stylesheet">
+<link href="../shared/ui.css?v=0.1.6" rel="stylesheet">
 <style>
 :root{
   --paper:#F3ECDF; --paper-2:#EBDFC8; --panel:#F8F2E6;
@@ -270,7 +270,7 @@ input[type=range]{width:100%;accent-color:var(--brass)}
 
 <div id="guide" class="hud-box">
   <span class="g-keys"><span class="cap" data-cap="L0">D</span> <span class="cap" data-cap="L1">F</span> <span class="cap" data-cap="L2">K</span> <span class="cap" data-cap="L3">L</span> 레인(안쪽부터)</span>
-  <span class="g-rewind"><span class="cap" data-cap="Space">Space</span> 되돌리기</span>
+  <span class="g-rewind"><span class="cap" data-cap="RW" data-rw>R</span> 되돌리기</span>
   <span class="g-pause"><span class="cap">Esc</span> 일시정지</span>
 </div>
 
@@ -302,7 +302,7 @@ input[type=range]{width:100%;accent-color:var(--brass)}
       <div class="howto" aria-label="조작 방법">
         <span class="keys"><span class="cap" data-keylabel="L0">D</span><span class="cap" data-keylabel="L1">F</span><span class="cap" data-keylabel="L2">K</span><span class="cap" data-keylabel="L3">L</span></span>
         <span class="what"><b>입력</b>: 안쪽 고리부터 한 키씩</span>
-        <span class="keys"><span class="cap">Space</span></span>
+        <span class="keys"><span class="cap" data-rw>R</span></span>
         <span class="what"><b>되감기</b>: 점수가 감소하는 대신 몇 초 전으로 게임 진행을 되돌림</span>
         <span class="keys"><span class="cap">Esc</span>또는<span class="cap pause-icon" title="일시정지 버튼" aria-label="일시정지 버튼">❚❚</span>클릭</span>
         <span class="what"><b>일시정지</b></span>
@@ -408,16 +408,16 @@ input[type=range]{width:100%;accent-color:var(--brass)}
 
 <!-- 서버 연결 라이브러리(Supabase, 버전 고정). 로그인 · 가입에 쓴다(shared/account.js) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
-<script src="../shared/version.js"></script>
-<script src="../shared/config.js"></script>
-<script src="../shared/songcrypt.js"></script>
-<script src="../shared/account.js"></script>
-<script src="../shared/chart-format.js"></script>
-<script src="../shared/library.js"></script>
-<script src="../shared/save.js"></script>
-<script src="../shared/ui.js"></script>
-<script src="engine.js"></script>
-<script src="charts/bundle.js"></script>
-<script src="game.js"></script>
+<script src="../shared/version.js?v=0.1.6"></script>
+<script src="../shared/config.js?v=0.1.6"></script>
+<script src="../shared/songcrypt.js?v=0.1.6"></script>
+<script src="../shared/account.js?v=0.1.6"></script>
+<script src="../shared/chart-format.js?v=0.1.6"></script>
+<script src="../shared/library.js?v=0.1.6"></script>
+<script src="../shared/save.js?v=0.1.6"></script>
+<script src="../shared/ui.js?v=0.1.6"></script>
+<script src="engine.js?v=0.1.6"></script>
+<script src="charts/bundle.js?v=0.1.6"></script>
+<script src="game.js?v=0.1.6"></script>
 </body>
 </html>

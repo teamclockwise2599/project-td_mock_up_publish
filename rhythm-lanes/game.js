@@ -23,7 +23,8 @@
   var DEFAULT_KEYS = ["KeyD", "KeyF", "KeyK", "KeyL"]; // 안쪽 레인부터
   var SETTINGS_VER = 3; // 2: 기본 회전 속도 90°→30° · 3: 곡·타격음 기본 음량 0.8/0.6 → 0.5/0.8
   // keyHint: 시침 뒤 레인 키 글자. always 계속 / start 시작만(첫 노트가 시침에 닿은 뒤 1초에 걸쳐 사라짐) / off 끄기
-  var settings = { offsetMs: 0, rewindSeconds: 3, rewindLimit: -1, rewindPenalty: 10000, leadDeg: 180, degPerBeat: 30, volume: 0.5, showDelta: true, keys: DEFAULT_KEYS.slice(), hitsound: true, hitVolume: 0.8, keyHint: "always", ver: SETTINGS_VER, layout: null, setupDone: false };
+  var settings = { offsetMs: 0, rewindSeconds: 3, rewindLimit: -1, rewindPenalty: 10000, leadDeg: 180, degPerBeat: 30, volume: 0.5, showDelta: true, keys: DEFAULT_KEYS.slice(), hitsound: true, hitVolume: 0.8, keyHint: "always", ver: SETTINGS_VER, layout: null, setupDone: false, rewindKey: "KeyR" };
+  var DEFAULT_REWIND_KEY = "KeyR"; // 되돌리기 기본 키(09-30, 예전 Space — 너무 커서 못 누르는 경우가 있었다)
   // 게임 화면 배치(UI 조정). 항목마다 기준 자리 h(left·center·right) · v(top·middle·bottom),
   // 그 자리에서 떨어진 거리 x · y(픽셀, 오른쪽·아래가 +), 크기 s(%). 플레이 화면(시계)은 h(좌·중·우)만 쓴다.
   // 곡 제목 · 난이도(옆에 되돌리기 남은 횟수) · 일시정지 버튼은 여기 없다(고정). 플레이 화면이
@@ -102,7 +103,7 @@
   // ---------- 레인 키 ----------
   // 키 하나 = 레인 하나. 내부 키 이름은 "L0"~"L3"(안쪽 레인부터).
   var KEY_NAMES = { Semicolon: ";", Quote: "'", Comma: ",", Period: ".", Slash: "/", BracketLeft: "[", BracketRight: "]", Backslash: "\\", Minus: "-", Equal: "=", Backquote: "`",
-    ArrowLeft: "←", ArrowRight: "→", ArrowUp: "↑", ArrowDown: "↓", ShiftLeft: "L⇧", ShiftRight: "R⇧", ControlLeft: "LCtrl", ControlRight: "RCtrl", AltLeft: "LAlt", AltRight: "RAlt", Enter: "Enter", Tab: "Tab" };
+    ArrowLeft: "←", ArrowRight: "→", ArrowUp: "↑", ArrowDown: "↓", ShiftLeft: "L⇧", ShiftRight: "R⇧", ControlLeft: "LCtrl", ControlRight: "RCtrl", AltLeft: "LAlt", AltRight: "RAlt", Enter: "Enter", Tab: "Tab", Space: "Space", Backspace: "Backspace", CapsLock: "Caps" };
   function codeLabel(code) {
     var m;
     if ((m = /^Key([A-Z])$/.exec(code))) return m[1];
@@ -110,6 +111,12 @@
     if ((m = /^Numpad(\d)$/.exec(code))) return "N" + m[1];
     return KEY_NAMES[code] || code;
   }
+  // 되돌리기 키 표시(게임 중 안내 · 처음 화면 조작법, data-rw)
+  function refreshRewindLabels() {
+    var txt = codeLabel(settings.rewindKey);
+    Array.prototype.forEach.call(document.querySelectorAll("[data-rw]"), function (el) { el.textContent = txt; });
+  }
+  function isInputKey(code) { return settings.keys.indexOf(code) >= 0; }
   function laneKeyOf(code) {
     var i = settings.keys.indexOf(code);
     return i >= 0 ? "L" + i : null;
@@ -1688,7 +1695,11 @@
   }
   function refreshOfficial() {
     if (!TDAccount.me()) return Promise.resolve();
-    return TDAccount.loadOfficialAll(MODE).then(function (rows) {
+    // 예전 account.js(모든 버전 받기 없음)가 섞여 들어와도 멈추지 않게 지금 버전만 받는 쪽으로 물러선다
+    return Promise.resolve().then(function () {
+      if (TDAccount.loadOfficialAll) return TDAccount.loadOfficialAll(MODE);
+      return TDAccount.loadOfficialCharts(MODE).then(function (rows) { return (rows || []).map(function (r) { return Object.assign({ is_current: true }, r); }); });
+    }).then(function (rows) {
       rows = rows || [];
       official = rows.filter(function (r) { return r.is_current; });
       var live = {};
@@ -1825,9 +1836,9 @@
       if (!e.repeat) tutPrimary();
       return;
     }
-    if (e.code === "Space") {
+    if (e.code === settings.rewindKey) {
       e.preventDefault();
-      if (!e.repeat) { setCap("Space", true); tryRewind(e.timeStamp); }
+      if (!e.repeat) { setCap("RW", true); tryRewind(e.timeStamp); }
       return;
     }
     var k = laneKeyOf(e.code);
@@ -1836,7 +1847,7 @@
     if (!e.repeat) strikeDown(k, e.timeStamp);
   });
   window.addEventListener("keyup", function (e) {
-    if (e.code === "Space") { setCap("Space", false); return; }
+    if (e.code === settings.rewindKey) { setCap("RW", false); return; }
     var k = laneKeyOf(e.code);
     if (k) strikeUp(k, e.timeStamp);
   });
@@ -1985,7 +1996,8 @@
   var SETTING_HELP = {
     degPerBeat: "시침이 한 박에 도는 각도입니다. 각도가 클수록 시침이 빨리 돌아 노트 사이가 넓게 벌어지고, 작을수록 천천히 돌아 노트가 촘촘하게 모입니다.",
     leadDeg: "노트가 시침에 닿기 얼마 전부터 보일지입니다. 3/4 바퀴 전이면 더 일찍 보이는 대신 한 화면에 노트가 많아집니다.",
-    rewindSeconds: "되돌리기(Space)를 누르면 몇 초 전으로 돌아갈지입니다.",
+    rewindSeconds: "되돌리기 키를 누르면 몇 초 전으로 돌아갈지입니다.",
+    rewindKey: "되돌리기에 쓸 키입니다. 버튼을 누른 뒤 원하는 키를 누르세요(Esc 취소). 입력 키와 Enter는 쓸 수 없습니다.",
     showDelta: "판정마다 얼마나 빠르거나 느렸는지(ms)를 보여 줍니다.",
     hitsound: "노트를 칠 때 소리를 냅니다.",
     keyHint: "시침 뒤에 레인 키 글자를 보여 줄지입니다.",
@@ -2130,6 +2142,22 @@
     };
     hv.onchange = function () { audio.hit("perfect"); }; // 손을 뗄 때 한 번 들려준다
     if (want("hitVolume")) row("타격음 음량", hv, null, SETTING_HELP.hitVolume);
+    // 되돌리기 키(09-30, 기본 R): 버튼을 누른 뒤 다음에 누른 키를 쓴다. 입력 키 · Enter는 막는다.
+    if (want("rewindKey")) {
+      var rwRow = document.createElement("div");
+      rwRow.className = "seg";
+      var rb = document.createElement("button");
+      rb.textContent = keyCapture === "rw" ? "키를 누르세요 (Esc 취소)" : codeLabel(settings.rewindKey);
+      if (keyCapture === "rw") rb.className = "on";
+      rb.onclick = function () { keyCapture = "rw"; rebuild(); };
+      rwRow.appendChild(rb);
+      var rd = document.createElement("button");
+      rd.textContent = "기본값(" + codeLabel(DEFAULT_REWIND_KEY) + ")";
+      rd.onclick = function () { settings.rewindKey = DEFAULT_REWIND_KEY; keyCapture = null; saveSettings(); refreshRewindLabels(); rebuild(); };
+      rwRow.appendChild(rd);
+      row("되돌리기 키", rwRow, null, SETTING_HELP.rewindKey);
+    }
+
     // 레인 키: 버튼을 누른 뒤 다음에 누른 키를 그 레인에 붙인다
     var keysRow = document.createElement("div");
     keysRow.className = "seg";
@@ -2195,6 +2223,7 @@
   function rebuildOpenSettings() {
     if ($("screen-settings").classList.contains("show")) buildSettings();
     if (selectSettingsOpen) buildSettings($("select-settings-body"));
+    if (setup && $("setup-set")) buildSettings($("setup-set"), SETUP_KEYS); // 처음 설정 카드
   }
   function openSettings(returnTo) {
     afterSettings = returnTo;
@@ -2208,7 +2237,17 @@
     e.preventDefault();
     if (e.repeat) return;
     if (e.code === "Escape") { keyCapture = null; rebuildOpenSettings(); return; }
-    if (e.code === "Space") { toast("Space는 되돌리기 키라 쓸 수 없습니다"); return; }
+    if (keyCapture === "rw") { // 되돌리기 키
+      if (e.code === "Enter" || e.code === "F11") { toast(codeLabel(e.code) + "는 쓸 수 없는 키입니다"); return; }
+      if (isInputKey(e.code)) { toast(codeLabel(e.code) + "는 입력 키라 되돌리기 키로 쓸 수 없습니다"); return; }
+      settings.rewindKey = e.code;
+      keyCapture = null;
+      saveSettings();
+      refreshRewindLabels();
+      rebuildOpenSettings();
+      return;
+    }
+    if (e.code === settings.rewindKey) { toast(codeLabel(e.code) + "는 되돌리기 키라 쓸 수 없습니다"); return; }
     if (e.code === "Enter") { toast("Enter는 곡 시작 · 튜토리얼 버튼 키라 쓸 수 없습니다"); return; }
     var i = keyCapture;
     var j = settings.keys.indexOf(e.code);
@@ -2969,7 +3008,7 @@
     demoNotes: [[0, 0], [1, 1], [2, 2], [3, 3], [4, 0], [4.5, 1], [5, 2], [5.5, 3], [6, 0], [6, 3]].map(tapRow)
       .concat([[8, 12, 1]].map(longRow)).concat([[13, 0], [14, 3], [15, 2]].map(tapRow)).concat([[16, 20, 3]].map(longRow))
   };
-  var SETUP_KEYS = ["degPerBeat", "leadDeg", "keys", "keyHint", "volume", "hitsound", "hitVolume", "showDelta"];
+  var SETUP_KEYS = ["degPerBeat", "leadDeg", "keys", "rewindKey", "keyHint", "volume", "hitsound", "hitVolume", "showDelta"];
   var setup = null; // { started: 가상 플레이가 도는 중(브라우저는 한 번 누르기 전에는 소리를 못 낸다) }
   function setupEngineOptions() {
     var o = engineOptions(); // 회전 · 되돌리기 간격은 설정값 그대로
@@ -3032,6 +3071,7 @@
   function finishSetup() {
     if (!setup) return;
     setup = null;
+    keyCapture = null;
     settings.setupDone = true;
     saveSettings();
     audio.stop();
@@ -3054,6 +3094,7 @@
 
   // ================= 시작 =================
   refreshKeyLabels();
+  refreshRewindLabels();
   resize();
   // 웹 글꼴이 늦게 들어오면 UI 상자 크기가 바뀔 수 있어 한 번 더 잰다.
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(resize);
@@ -3137,6 +3178,9 @@
         refreshOfficial(),
         TDAccount.loadRules(MODE).then(applyRules, function (e) { toast("게임 규칙을 받지 못했습니다: " + TDAccount.errorText(e), 4000); })
       ]);
+    }).catch(function (e) {
+      // 켜는 도중 오류가 나도 처음 화면은 연다(09-30: 옛 파일이 섞여 빈 화면에 멈추던 문제)
+      toast("일부 정보를 불러오지 못했습니다. 새로 고침(Ctrl+F5)해 보세요: " + (e && e.message ? e.message : e), 6000);
     }).then(function () { showScreen("screen-title"); });
     var loaded = TDLibrary.load(MODE).then(function (lib) { library = lib; }, function (e) {
       library = { online: TDLibrary.online, charts: [], songs: [], errors: [{ file: "(서버)", error: e && e.message ? e.message : String(e) }] };

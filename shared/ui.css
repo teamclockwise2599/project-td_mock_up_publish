@@ -208,6 +208,7 @@ body.tutorial #hud-right #rewinds{visibility:hidden}
 #tut-card .tc-phase.live{background:var(--brass-hi);border-color:var(--wood)}
 #tut-card .stack{gap:8px}
 #tut-card .tc-quit{margin-top:10px;font-size:12.5px;color:var(--mute);text-align:right}
+#tut-card .tc-warn{color:#A83232}
 #tut-card .tc-quit button{font:inherit;border:0;background:none;color:var(--mute);text-decoration:underline;cursor:pointer;padding:0}
 
 /* 난이도 칸 나란히(diffSlots): 칸마다 난이도·레벨·상태·최고 점수·등급·보더·노트 */

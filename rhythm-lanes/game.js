@@ -1772,6 +1772,7 @@
     if (mode === "select" && selectSettingsOpen) { setSelectSettings(false); return; } // 먼저 옆 설정을 접는다
     if (mode === "playing" || mode === "countdown") { if (!inTutorialPlay()) pauseGame(); } // 튜토리얼은 일시정지 없음
     else if (mode === "paused") resumeGame();
+    else if ((mode === "demo" || mode === "tutorial") && tut.skipWarn) { tut.skipWarn = 0; renderTutCard(); } // 건너뛰기 경고만 닫는다
     else if (mode === "demo") closeTutorial(false);
     else if (mode === "tutorial") { if (tut.phase !== "loading") closeTutorial(false); }
     else if (mode === "select") { mode = "title"; renderTitle(); showScreen("screen-title"); }
@@ -2578,7 +2579,7 @@
   }
 
   // phase: intro(설명) · demo(시연 중) · ready(시연 끝) · play(직접 해보는 중) · result(판정 결과) · done(전부 끝)
-  var tut = { index: 0, phase: "intro", fails: 0, last: null, token: 0 };
+  var tut = { index: 0, phase: "intro", fails: 0, last: null, token: 0, skipWarn: 0 }; // skipWarn: 건너뛰기 경고 단계(0 없음 · 1 · 2)
   var demo = null; // 시연 상태: { held, holdKeys, releases, lastEnd }
 
   function openTutorial(index) {
@@ -2602,6 +2603,7 @@
   }
 
   function enterLesson(i) {
+    tut.skipWarn = 0;
     tut.index = i;
     tut.fails = 0;
     tut.last = null;
@@ -2784,6 +2786,16 @@
     tut.unlocked = wasDone ? [] : library.charts.filter(function (c) { return c.unlock && c.unlock.type === "tutorial"; });
     renderTutCard();
   }
+  // 튜토리얼 건너뛰기(경고 두 번 뒤): 마친 것으로 기록하고(쉬움 · 보통 해금) 곡 선택으로 간다.
+  function skipTutorial() {
+    tut.skipWarn = 0;
+    var before = library.charts.filter(function (c) { return save.isUnlocked(c); }).map(function (c) { return c.id; });
+    save.setTutorialDone();
+    var opened = library.charts.filter(function (c) { return save.isUnlocked(c) && before.indexOf(c.id) < 0; });
+    closeTutorial(true);
+    toast("튜토리얼을 건너뛰었습니다" + (opened.length ? " · 새로 열림: " + opened.map(function (c) { return c.title + " [" + TDC.difficultyLabel(c.difficulty) + "]"; }).join(", ") : "") +
+      " · 처음 화면 「튜토리얼」에서 다시 할 수 있습니다", 5000);
+  }
   function closeTutorial(toSelect) {
     tut.token++;
     if (mode === "demo" || mode === "rewinding") audio.stop();
@@ -2820,6 +2832,18 @@
       box.innerHTML = html;
       return;
     }
+    // 건너뛰기 경고 두 번(09-30, 사용자). 기본 버튼(Enter)은 「튜토리얼 계속하기」라 실수로 건너뛰지 않는다.
+    if (tut.skipWarn) {
+      var second = tut.skipWarn >= 2;
+      html += "<h3>" + (second ? "정말 건너뛸까요?" : "튜토리얼을 건너뛸까요?") + '</h3><div class="tc-dots">' + dots + "</div>" +
+        '<div class="tc-status tc-warn">' + (second
+          ? "튜토리얼을 마친 것으로 기록되어 쉬움 · 보통 채보가 열립니다.<br>처음 화면의 「튜토리얼」에서 언제든 다시 할 수 있습니다."
+          : "튜토리얼은 이 유형의 조작과 노트 종류를 단계별로 익히는 과정입니다.<br>건너뛰면 조작을 익히지 않은 채 곡을 시작하게 됩니다.") + "</div>" +
+        '<div class="stack"><button class="btn primary" data-tut="skip-cancel">튜토리얼 계속하기 (Enter)</button><button class="btn" data-tut="skip">' + (second ? "건너뛰기" : "그래도 건너뛰기") + "</button></div>" +
+        '<div class="tc-quit"><button data-tut="skip-cancel">돌아가기 (Esc)</button></div>';
+      box.innerHTML = html;
+      return;
+    }
     var phaseText = { loading: "음원 준비 중", intro: "곧 시연", demo: "시연 중 · 되풀이", ready: "대기", play: "직접 해보는 중", result: "결과" }[tut.phase];
     var live = tut.phase === "demo" || tut.phase === "play";
     html += "<h3>" + lesson.name + '</h3><div class="tc-dots">' + dots + "</div>" +
@@ -2851,7 +2875,8 @@
       }
     }
     html += '<div class="tc-status">' + status + '</div><div class="stack">' + btns + "</div>" +
-      '<div class="tc-quit"><button data-tut="quit">튜토리얼 나가기' + (tut.phase === "play" ? "" : " (Esc)") + "</button></div>";
+      '<div class="tc-quit">' + (!save.tutorialDone() && tut.phase !== "play" ? '<button data-tut="skip">튜토리얼 건너뛰기</button> · ' : "") +
+      '<button data-tut="quit">튜토리얼 나가기' + (tut.phase === "play" ? "" : " (Esc)") + "</button></div>";
     box.innerHTML = html;
   }
   // 카드의 첫 버튼(Enter)
@@ -2869,6 +2894,11 @@
       if (mode === "tutorial") startPractice();
     }
     else if (act === "next") nextLesson();
+    else if (act === "skip") {
+      if (tut.skipWarn < 2) { tut.skipWarn++; renderTutCard(); }
+      else skipTutorial();
+    }
+    else if (act === "skip-cancel") { tut.skipWarn = 0; renderTutCard(); }
     else if (act === "select") closeTutorial(true);
     else if (act === "title") closeTutorial(false);
     else if (act === "quit") {

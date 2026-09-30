@@ -20,7 +20,7 @@
 
   // ================= 설정 =================
   var SETTINGS_KEY = "td-rhythm-mockup-v1";
-  var settings = { offsetMs: 0, rewindSeconds: 3, rewindLimit: -1, rewindPenalty: 10000, leadDeg: 180, degPerBeat: 90, volume: 0.5, showDelta: true, hitsound: true, hitVolume: 0.8, ver: 2, layout: null };
+  var settings = { offsetMs: 0, rewindSeconds: 3, rewindLimit: -1, rewindPenalty: 10000, leadDeg: 180, degPerBeat: 90, volume: 0.5, showDelta: true, hitsound: true, hitVolume: 0.8, ver: 2, layout: null, setupDone: false };
   // 게임 화면 배치(UI 조정). 항목마다 기준 자리 h(left·center·right) · v(top·middle·bottom),
   // 그 자리에서 떨어진 거리 x · y(픽셀, 오른쪽·아래가 +), 크기 s(%). 플레이 화면(시계)은 h(좌·중·우)만 쓴다.
   // 곡 제목 · 난이도(옆에 되돌리기 남은 횟수) · 일시정지 버튼은 여기 없다(고정). 플레이 화면이
@@ -1378,6 +1378,7 @@
   function sessionParts() {
     if (!session) return null;
     if (session.kind === "tutorial") return { title: "튜토리얼", sub: (tut.index + 1) + "/" + LESSONS.length + " · " + session.lesson.name };
+    if (session.kind === "setup") return { title: "처음 설정", sub: "가상 플레이" };
     var p = chartParts(session.chart);
     if (session.kind === "test") p.title = "[테스트] " + p.title;
     return p;
@@ -1769,6 +1770,7 @@
   function onEscape() {
     if ($("screen-settings").classList.contains("show")) { closeSettings(); return; }
     if (TEST_TAB) { backToEditor(); return; } // 테스트 플레이 탭: 어느 화면이든 에디터로
+    if (setup) { finishSetup(); return; } // 처음 설정: 지금 설정 그대로 마친다
     if (mode === "layout") { closeLayout(); return; }
     if (mode === "select" && selectSettingsOpen) { setSelectSettings(false); return; } // 먼저 옆 설정을 접는다
     if (mode === "playing" || mode === "countdown") { if (!inTutorialPlay()) pauseGame(); } // 튜토리얼은 일시정지 없음
@@ -1958,7 +1960,7 @@
   // ================= 설정 =================
   // locked: 서버의 게임 규칙(목업별). 관리자 이상만 바꾸고, 바꾸면 모든 플레이어에게 적용된다(맨 아래에 모아 둔다)
   var SETTING_DEFS = [
-    { key: "degPerBeat", label: "박자당 회전 각도", options: [[90, "90° · 4박 1바퀴"], [60, "60° · 6박"], [45, "45° · 8박"], [30, "30° · 12박"]] },
+    { key: "degPerBeat", label: "박자당 회전 각도", options: [[90, "90° · 4박에 한 바퀴"], [60, "60° · 6박에 한 바퀴"], [45, "45° · 8박에 한 바퀴"], [30, "30° · 12박에 한 바퀴"]] },
     { key: "rewindSeconds", label: "되돌리기 간격", options: [[2, "2초"], [3, "3초"], [4, "4초"], [5, "5초"]] },
     { key: "leadDeg", label: "노트 등장 시점", options: [[180, "반 바퀴 전"], [270, "3/4 바퀴 전"]] },
     { key: "showDelta", label: "판정 오차 표시", options: [[true, "켜기"], [false, "끄기"]] },
@@ -1966,6 +1968,19 @@
     { key: "rewindLimit", label: "되돌리기 횟수", locked: true, options: [[-1, "무제한"], [3, "3회"], [1, "1회"], [0, "없음"]] },
     { key: "rewindPenalty", label: "되돌리기 감점", locked: true, options: [[0, "0"], [10000, "10,000"], [30000, "30,000"], [50000, "50,000"]] }
   ];
+  // 설정 설명(이름 아래 작은 줄, 09-30): 읽고 체감할 수 있게
+  var SETTING_HELP = {
+    degPerBeat: "시침이 한 박에 도는 각도입니다. 각도가 클수록 시침이 빨리 돌아 노트 사이가 넓게 벌어지고, 작을수록 천천히 돌아 노트가 촘촘하게 모입니다.",
+    leadDeg: "노트가 시침에 닿기 얼마 전부터 보일지입니다. 3/4 바퀴 전이면 더 일찍 보이는 대신 한 화면에 노트가 많아집니다.",
+    rewindSeconds: "되돌리기(Space)를 누르면 몇 초 전으로 돌아갈지입니다.",
+    showDelta: "판정마다 얼마나 빠르거나 느렸는지(ms)를 보여 줍니다.",
+    hitsound: "노트를 칠 때 소리를 냅니다.",
+    keyHint: "시침 뒤에 레인 키 글자를 보여 줄지입니다.",
+    keys: "레인마다 쓸 키입니다. 버튼을 누른 뒤 원하는 키를 누르세요.",
+    volume: "음악 소리 크기입니다.",
+    hitVolume: "타격음 크기입니다.",
+    offsetMs: "판정이 늘 한쪽으로 치우치면 조정합니다. 「싱크 맞추기」로 재면 자동으로 맞춰집니다."
+  };
   // 잠긴 설정(게임 규칙)은 관리자 이상 계정으로 로그인했을 때만 풀린다
   function settingsUnlocked() { return TDAccount.isAdmin(TDAccount.me()); }
   // 서버의 게임 규칙 { rewind_limit, rewind_penalty }를 설정에 적용한다(켤 때 받은 값 · 관리자가 바꾼 값)
@@ -1990,12 +2005,14 @@
   }
   // target: 그릴 곳. 생략하면 설정 화면, 곡 선택 옆 플레이 설정이면 그 칸(기록 줄은 빼고 플레이 관련만).
   // 순서: 음량 → 싱크 오프셋 → 일반 항목 → 타격음 음량 → 잠긴 항목(되돌리기 횟수·감점) → 기록(설정 화면만)
-  function buildSettings(target) {
+  // only: 이 항목만 그린다(처음 설정 화면. 설정 키 이름 · "volume" · "hitVolume" · "offsetMs" · "keys"). 없으면 전부.
+  function buildSettings(target, only) {
     var body = target || $("settings-body");
-    function rebuild() { buildSettings(target); }
+    function rebuild() { buildSettings(target, only); }
+    function want(k) { return !only || only.indexOf(k) >= 0; }
     body.innerHTML = "";
     // extra: 이름 줄 오른쪽에 붙일 요소(있으면)
-    function row(label, el, extra) {
+    function row(label, el, extra, help) {
       var k = document.createElement("div");
       k.className = "k";
       k.textContent = label;
@@ -2006,8 +2023,15 @@
         k.appendChild(grow);
         k.appendChild(extra);
       }
+      if (help) {
+        var hp = document.createElement("small");
+        hp.className = "k-help";
+        hp.textContent = help;
+        k.appendChild(hp);
+      }
       body.appendChild(k);
       body.appendChild(el);
+      return k;
     }
     // 일시정지에서 연 설정: 판정선 속도(박자당 회전 각도)와 되돌리기 간격은 바꿀 수 없다(연주 중인 판의 진행이 달라지므로)
     var inPlay = !target && afterSettings === "screen-pause";
@@ -2029,10 +2053,11 @@
           engine.setOptions(engineOptions());
           if (d.key === "degPerBeat") buildDialCache();
           rebuild();
+          if (setup) setupChanged(d.key);
         };
         seg.appendChild(b);
       });
-      row(d.label, seg);
+      row(d.label, seg, null, SETTING_HELP[d.key]);
       if (playLocked) {
         var note = document.createElement("small");
         note.className = "k-note";
@@ -2050,7 +2075,7 @@
       saveSettings();
       if (audio.master && mode !== "gameover") audio.master.gain.value = settings.volume;
     };
-    row("음량", vol);
+    if (want("volume")) row("음량", vol, null, SETTING_HELP.volume);
     var off = document.createElement("div");
     off.className = "seg";
     [-10, -1, 1, 10].forEach(function (v, i) {
@@ -2077,8 +2102,8 @@
       goSync.textContent = "싱크 맞추러 가기";
       goSync.onclick = function () { syncReturn = "select"; audio.resume().then(openSync); };
     }
-    row("싱크 오프셋", off, goSync);
-    SETTING_DEFS.forEach(function (d) { if (!d.locked) segRow(d); });
+    if (want("offsetMs")) row("싱크 오프셋", off, goSync, SETTING_HELP.offsetMs);
+    SETTING_DEFS.forEach(function (d) { if (!d.locked && want(d.key)) segRow(d); });
     var hv = document.createElement("input");
     hv.type = "range";
     hv.min = 0;
@@ -2090,7 +2115,8 @@
       if (audio.hitBus) audio.hitBus.gain.value = settings.hitVolume;
     };
     hv.onchange = function () { audio.hit("perfect"); }; // 손을 뗄 때 한 번 들려준다
-    row("타격음 음량", hv);
+    if (want("hitVolume")) row("타격음 음량", hv, null, SETTING_HELP.hitVolume);
+    if (only) return; // 처음 설정 화면: 고른 항목만
     // 잠긴 항목(게임 규칙): 관리자 이상이 아니면 값만 보인다
     var unlocked = settingsUnlocked();
     var note = document.createElement("div");
@@ -2598,6 +2624,7 @@
   }
   // 한 바퀴 끝: 판을 처음 상태로 돌리고 시계만 다시 튼다(커서는 있던 자리에서 이어 움직인다)
   function restartDemoLoop() {
+    if (setup) { startSetupLoop(); return; } // 처음 설정 화면: 음원과 함께 처음부터
     engine.reset();
     engine.drainEvents();
     popups = [];
@@ -2620,11 +2647,12 @@
     engine.notes.forEach(function (n) {
       // 화면 갱신이 늦어도 흔들리지 않게, 누르는 시각은 노트의 정확한 판정 시각으로 넣는다.
       if (n.state === "idle" && t >= n.t) {
-        var keys = LESSONS[tut.index].demoKeys;
+        var keys = (session && session.lesson ? session.lesson : LESSONS[tut.index]).demoKeys;
         var k = keys ? keys[engine.notes.indexOf(n) % keys.length] : demoKey();
         if (!k) return;
         d.cursor = engine.posAt(n.t, n.lane);
-        engine.press(k, n.t, d.cursor);
+        var hitN = engine.press(k, n.t, d.cursor);
+        if (setup) playHitsound(engine, hitN); // 처음 설정 화면만 타격음(튜토리얼 시연은 조용히)
         d.held[k] = true;
         if (n.type === TYPE.TAP) d.releases.push({ key: k, at: n.t + 0.12 });
         else { d.holdKeys[k] = n; d.releases.push({ key: k, at: n.end }); }
@@ -2633,7 +2661,8 @@
         n.slots.forEach(function (sl) {
           if (sl.kind === "tap" && !sl.result && t >= sl.time) {
             var k2 = n.holdKey === "Z" ? "X" : "Z";
-            engine.press(k2, sl.time, d.cursor);
+            var hitR = engine.press(k2, sl.time, d.cursor);
+            if (setup) playHitsound(engine, hitR);
             d.held[k2] = true;
             d.releases.push({ key: k2, at: sl.time + 0.12 });
           }
@@ -2670,7 +2699,7 @@
     Object.keys(d.holdKeys).forEach(function (k) {
       if (d.holdKeys[k].state !== "holding") { delete d.held[k]; delete d.holdKeys[k]; }
     });
-    engine.drainEvents().forEach(function (ev) { if (ev.kind === "judge") onJudge(ev, perf, true); });
+    engine.drainEvents().forEach(function (ev) { if (ev.kind === "judge") onJudge(ev, perf, !setup); }); // 처음 설정 화면은 누르는 노트 끝소리도
     demoCaps(d.held);
     if (engine.getState().finished && t > d.lastEnd + 1) restartDemoLoop();
   }
@@ -2716,6 +2745,7 @@
     g.restore();
   }
   function drawDemoLabels(t) {
+    if (setup) return; // 처음 설정 화면은 실제 플레이처럼(튜토리얼 이름표 없음)
     var lead = engine.leadTime(settings.leadDeg);
     var up = R * 0.13;
     var holdingAny = false;
@@ -2893,6 +2923,7 @@
       else skipTutorial();
     }
     else if (act === "skip-cancel") { tut.skipWarn = 0; renderTutCard(); }
+    else if (act === "setup-done") finishSetup();
     else if (act === "select") closeTutorial(true);
     else if (act === "title") closeTutorial(false);
     else if (act === "quit") {
@@ -2900,6 +2931,99 @@
       closeTutorial(false);
     }
   });
+
+  // ================= 처음 설정(09-30) =================
+  // 가상의 플레이(자동 연주 + 음원)를 계속 돌리고, 오른쪽 카드에서 고른 설정대로 곧바로 다시 돈다. 기기마다 한 번(settings.setupDone).
+  // 처음 켤 때는 처음 설정 → 싱크 맞추기 → 튜토리얼. 튜토리얼 시연 장치(demo)를 쓰되 회전은 지금 설정값을 따른다.
+  var SETUP_LESSON = {
+    key: "setup", name: "처음 설정", at: 8, notes: [],
+    // 고리를 옮겨 가며 탭 → 반 박 탭 → 롱 → 탭 → 체이스(구간 첫 박 기준, 박자)
+    demoNotes: [[0, 1], [1, 2], [2, 1], [3, 0], [4, 3], [4.5, 2], [5, 1], [5.5, 0]].map(tapRow)
+      .concat([[8, 12, 2]].map(holdRow(TYPE.LONG))).concat([[13, 1], [14, 2], [15, 3]].map(tapRow))
+      .concat([[16, 20, 0, [[16, 0], [20, 3]]]].map(chaseRow))
+  };
+  var SETUP_KEYS = ["degPerBeat", "leadDeg", "volume", "hitsound", "hitVolume", "showDelta"];
+  var setup = null; // { started: 가상 플레이가 도는 중(브라우저는 한 번 누르기 전에는 소리를 못 낸다) }
+  function setupEngineOptions() {
+    var o = engineOptions(); // 회전 · 되돌리기 간격은 설정값 그대로
+    o.lifePerMiss = 0;
+    o.rewindLimit = 0;
+    return o;
+  }
+  function openSetup() {
+    showScreen(null);
+    document.body.classList.add("tutorial", "setup");
+    resize();
+    session = { kind: "setup", lesson: SETUP_LESSON, chart: null, from: lessonFrom(SETUP_LESSON) };
+    setup = { started: false };
+    setSongLabel(sessionParts());
+    demo = null;
+    mode = "demo";
+    renderSetupCard();
+    startSetupLoop();
+    loadSong(TUT_SONG.song).then(function (b) { audio.buffer = b; if (setup && setup.started) startSetupLoop(); }, function () { /* 음원이 없으면 소리 없이 시계만 */ });
+  }
+  // 가상 플레이를 처음부터: 지금 설정(회전 각도 등)으로 엔진을 새로 만들고 음원(있으면)과 함께 튼다
+  function startSetupLoop() {
+    if (!setup) return;
+    useEngine(lessonChart(SETUP_LESSON, true), setupEngineOptions());
+    engine.reset();
+    engine.drainEvents();
+    popups = [];
+    sparks = [];
+    hudPrev = {};
+    lastComboMark = 0;
+    demo = { held: {}, holdKeys: {}, releases: [], cursor: demo ? demo.cursor : null, move: null, lastEnd: LAST_END };
+    demoCaps({});
+    audio.resume().then(function () {
+      if (!setup) return;
+      audio.stop();
+      if (audio.buffer) audio.play(session.from, 0.1);
+      else audio.startClock(session.from, 0.1);
+      mode = "demo";
+      if (!setup.started) { setup.started = true; renderSetupCard(); }
+    });
+  }
+  // 설정을 바꿨을 때: 회전 · 등장 시점은 판을 새로 돌리고, 나머지(소리 · 표시)는 도는 중에 바로 반영된다
+  function setupChanged(key) {
+    if (key === "degPerBeat" || key === "leadDeg") startSetupLoop();
+  }
+  // 브라우저는 누르기 전에는 소리를 못 낸다: 처음 설정 화면에서 아무 곳이나 누르면 가상 플레이를 시작한다
+  function wakeSetup() { if (setup && !setup.started) audio.resume(); }
+  window.addEventListener("pointerdown", wakeSetup, true);
+  window.addEventListener("keydown", wakeSetup, true);
+  function renderSetupCard() {
+    var box = $("tut-card");
+    box.innerHTML = '<div class="tc-step">FIRST SETUP</div><h3>처음 설정</h3>' +
+      '<div class="tc-status">' + (setup.started ? "왼쪽에서 가상 플레이가 계속 재생됩니다. 설정을 바꾸면 곧바로 그 설정으로 다시 재생됩니다."
+        : "화면을 한 번 누르면 가상 플레이가 시작됩니다(브라우저는 누르기 전에는 소리를 낼 수 없습니다).") + "</div>" +
+      '<div class="set" id="setup-set"></div>' +
+      '<div class="tc-status">처음 화면 · 곡 선택의 「설정」에서 언제든 바꿀 수 있습니다.</div>' +
+      '<div class="stack"><button class="btn primary" data-tut="setup-done">' + (firstRun ? "다음: 싱크 맞추기 (Enter)" : "완료 (Enter)") + "</button></div>";
+    buildSettings($("setup-set"), SETUP_KEYS);
+  }
+  function finishSetup() {
+    if (!setup) return;
+    setup = null;
+    settings.setupDone = true;
+    saveSettings();
+    audio.stop();
+    demo = null;
+    demoCaps({});
+    session = null;
+    popups = [];
+    sparks = [];
+    document.body.classList.remove("tutorial", "setup");
+    useEngine(EMPTY_CHART);
+    frozenTime = -0.5;
+    hudPrev = {};
+    setSongLabel(null);
+    resize();
+    if (firstRun) { openSync(); return; } // 처음 켠 경우: 싱크 맞추기 → 튜토리얼
+    mode = "title";
+    renderTitle();
+    showScreen("screen-title");
+  }
 
   // ================= 시작 =================
   resize();
@@ -3010,11 +3134,11 @@
       if (params.has("tutorial")) { openTutorial(lessonIndexOf(params.get("tutorial"))); return; }
       if (params.has("select")) { openSelect(); return; }
       if (!save.firstRunDone()) {
-        // 처음 켰을 때: 싱크 맞추기 → 튜토리얼 순서로 안내한다. 싱크 값이 튜토리얼 판정에도 쓰이기 때문.
+        // 처음 켰을 때: 처음 설정 → 싱크 맞추기 → 튜토리얼 순서로 안내한다. 싱크 값이 튜토리얼 판정에도 쓰이기 때문.
         save.setFirstRunDone();
         firstRun = true;
-        openSync();
-      }
+        openSetup();
+      } else if (!settings.setupDone) openSetup(); // 이 기기에서 처음 설정을 아직 안 했다(예전부터 하던 플레이어도 한 번, 09-30)
     });
   }
 

@@ -2017,7 +2017,8 @@
     engine.setOptions(engineOptions());
   }
   function saveRule(key, value, done) {
-    var next = { rewind_limit: settings.rewindLimit, rewind_penalty: settings.rewindPenalty };
+    // 바꾼 항목 하나만 쓴다(09-30): 다른 탭 · 예전 화면이 들고 있던 나머지 값으로 서버 값을 덮어쓰지 않게
+    var next = {};
     next[key === "rewindLimit" ? "rewind_limit" : "rewind_penalty"] = value;
     TDAccount.saveRules(MODE, next).then(function (r) {
       applyRules(r);
@@ -3205,6 +3206,7 @@
       if (params.has("selftest")) return;
       if (params.has("tutorial")) { openTutorial(lessonIndexOf(params.get("tutorial"))); return; }
       if (params.has("select")) { openSelect(); return; }
+      if (params.has("setup")) { openSetup(); return; } // 주소에 ?setup이 있으면 처음 설정을 다시 연다(09-30)
       if (!save.firstRunDone()) {
         // 처음 켰을 때: 처음 설정 → 싱크 맞추기 → 튜토리얼 순서로 안내한다. 싱크 값이 튜토리얼 판정에도 쓰이기 때문.
         save.setFirstRunDone();

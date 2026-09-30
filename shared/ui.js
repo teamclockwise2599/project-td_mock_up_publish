@@ -37,11 +37,12 @@
   // 곡 + 난이도(채보)마다 하나. state: 게임이 준 이 채보의 랭킹 { status: "custom" | "loading" | "ok" | "error" | "none", entries, message }.
   // entries는 서버 get_ranking의 값(점수 높은 순). 아래 줄은 이 계정의 최고 기록(shared/save.js).
   var RANKING_TEXT = {
-    custom: "커스텀 채보는 랭킹이 없습니다.", loading: "랭킹을 불러오는 중…", none: "로그인하면 랭킹이 보입니다.", empty: "아직 기록이 없습니다."
+    custom: "커스텀 채보는 랭킹이 없습니다.", old: "예전 버전은 랭킹이 없습니다(기록은 남습니다).", loading: "랭킹을 불러오는 중…", none: "로그인하면 랭킹이 보입니다.", empty: "아직 기록이 없습니다."
   };
   // 로컬(파일로 열기 · localhost)에서만: 「배포에 포함」(채보 deploy 칸)이 꺼진 커스텀 채보에 「미배포」를 붙인다. 배포본에는 켜진 채보만 들어간다.
   var LOCAL = typeof location !== "undefined" && (location.protocol === "file:" || /^(localhost|127\.0\.0\.1)$/.test(location.hostname));
   function officialBadge(c) {
+    if (c.old) return '<span class="badge custom" title="고치기 전의 공식 채보(개인 기록만, 랭킹 없음)">예전 공식 v' + c.old.version + "</span>";
     if (c.official) return '<span class="badge official" title="소유자가 게시한 공식 채보">공식 v' + c.official.version + "</span>";
     return '<span class="badge custom" title="이 기기에만 있는 채보(랭킹 없음)">커스텀</span>' +
       (LOCAL && !c.deploy ? '<span class="badge undeployed" title="배포본(GitHub Pages)에 넣지 않는 채보. 에디터 「배포에 포함」을 켜고 저장하면 넣습니다">미배포</span>' : "");
@@ -89,7 +90,7 @@
       try { localStorage.setItem(FILTER_KEY, f); } catch (e) { /* 무시 */ }
     }
     function passes(c) {
-      return state.filter === "all" || (state.filter === "official") === !!c.official;
+      return state.filter === "all" || (state.filter === "official") === !!(c.official || c.old); // 예전 공식 버전은 공식 쪽
     }
     function shown() { return opts.charts.filter(passes); }
 

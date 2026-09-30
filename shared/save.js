@@ -50,7 +50,7 @@
   }
   // owner: 이 데이터가 어느 계정 것인가(계정 id, 계정 연결 전 데이터는 null). shared/account.js bindProgress가 정한다.
   function freshData() {
-    return { ver: 1, tutorial: { done: false, lessons: {} }, firstRunDone: false, records: {}, seen: {}, unlockAll: false, owner: null };
+    return { ver: 1, tutorial: { done: false, lessons: {} }, firstRunDone: false, records: {}, seen: {}, notices: {}, unlockAll: false, owner: null }; // notices: 본 안내(예: rivet 리벳 겹침, 09-30)
   }
   // 저장해 둔 글(또는 서버에서 받은 값)을 지금 모양으로. 모르는 버전이면 새 데이터.
   function normalize(raw) {
@@ -73,6 +73,7 @@
       var lessons = d.tutorial.lessons || {};
       Object.keys(lessons).forEach(function (k) { out.tutorial.lessons[k] = !!lessons[k] || !!out.tutorial.lessons[k]; });
       Object.keys(d.seen || {}).forEach(function (id) { if (d.seen[id]) out.seen[id] = true; });
+      Object.keys(d.notices || {}).forEach(function (k) { if (d.notices[k]) out.notices[k] = true; });
     });
     var ids = {};
     Object.keys(a.records).concat(Object.keys(b.records)).forEach(function (id) { ids[id] = true; });
@@ -213,6 +214,8 @@
       isNew: function (chart) { return isUnlocked(chart) && !data.seen[chart.id]; },
       markSeen: function (id) { if (!data.seen[id]) { data.seen[id] = true; save(); } },
       setUnlockAll: function (on) { data.unlockAll = !!on; save(); },
+      noticeSeen: function (key) { return !!(data.notices && data.notices[key]); },
+      markNotice: function (key) { if (!data.notices) data.notices = {}; if (!data.notices[key]) { data.notices[key] = true; save(); } },
       reset: function () { var owner = data.owner; data = freshData(); data.owner = owner; save(); } // 기록 초기화(시험용). 계정 표시는 남긴다
     };
     return inst;

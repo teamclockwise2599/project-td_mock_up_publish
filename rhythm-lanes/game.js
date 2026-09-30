@@ -1580,7 +1580,7 @@
       if (info.newMedal && medal) best += ' · <span class="up">새 보더 ' + TDSave.MEDAL_LABEL[medal] + "</span>";
       // 랭킹: 공식 채보를 클리어한 판만 서버에 올린다
       if (session.chart.official && TDAccount.me()) { if (cleared) best += ' · <span id="result-upload">랭킹에 올리는 중…</span>'; }
-      else if (TDAccount.me()) best += " · 커스텀 채보라 랭킹에 올리지 않습니다";
+      else if (TDAccount.me()) best += session.chart.old ? " · 예전 버전이라 랭킹에 올리지 않습니다" : " · 커스텀 채보라 랭킹에 올리지 않습니다";
       if (info.unlocked.length) {
         unlock = "새로 열림: " + info.unlocked.map(function (id) {
           var c = library.charts.filter(function (x) { return x.id === id; })[0];
@@ -1648,8 +1648,16 @@
   // ================= 공식 채보 · 랭킹 =================
   // 공식 채보는 서버(소유자가 게시)에서 받는다. 같은 id의 로컬 채보는 공식판으로 바꾸고, 로컬에 없는 공식 채보는 더한다.
   // 나머지(이 기기에만 있는 채보)는 커스텀: 기록은 계정에 남지만 랭킹에는 올리지 않는다. 채보의 official = { row, version } 또는 null.
+  // 예전 공식 버전(09-30): 같은 채보에 지금 버전이 있을 때만(내린 채보는 숨김) 곡을 따로 한 줄 "제목 (old 게시한 날)"로 더한다.
+  //   채보 id · 곡 묶음은 "<원래>_old-v<버전>"(기록이 지금 버전과 따로 쌓인다), old = { row, version, date }, 랭킹 없음.
   var localCharts = []; // 이 기기의 채보(서버로 연 경우 charts 폴더, 아니면 사본)
-  var official = []; // 서버의 지금 버전 공식 채보(TDAccount.loadOfficialCharts)
+  var official = []; // 서버의 지금 버전 공식 채보
+  var officialOld = []; // 서버의 예전 버전(지금 버전이 있는 채보만)
+  function mmdd(iso) {
+    var d = new Date(iso);
+    function two(n) { return (n < 10 ? "0" : "") + n; }
+    return two(d.getMonth() + 1) + "-" + two(d.getDate());
+  }
   function withOfficial(charts) {
     var byId = {};
     official.forEach(function (o) { byId[o.chart_id] = o; });
@@ -1665,12 +1673,27 @@
       return fromServer(o);
     });
     Object.keys(byId).forEach(function (id) { out.push(fromServer(byId[id])); });
+    officialOld.forEach(function (o) {
+      var oc = TDC.normalizeChart(o.data, o.chart_id);
+      var tag = "_old-v" + o.version;
+      oc.id = o.chart_id + tag;
+      oc.songId = oc.songId + tag;
+      oc.title = oc.title + " (old " + mmdd(o.published_at) + ")";
+      oc.order = (oc.order || 0) + 1000; // 지금 버전들 아래
+      oc.official = null;
+      oc.old = { row: o.id, version: o.version, date: o.published_at };
+      out.push(oc);
+    });
     return out;
   }
   function refreshOfficial() {
     if (!TDAccount.me()) return Promise.resolve();
-    return TDAccount.loadOfficialCharts(MODE).then(function (rows) {
-      official = rows || [];
+    return TDAccount.loadOfficialAll(MODE).then(function (rows) {
+      rows = rows || [];
+      official = rows.filter(function (r) { return r.is_current; });
+      var live = {};
+      official.forEach(function (r) { live[r.chart_id] = true; });
+      officialOld = rows.filter(function (r) { return !r.is_current && live[r.chart_id]; }); // 내린 채보(지금 버전 없음)는 예전 버전까지 숨긴다
       rankCache = {};
     }, function (e) { toast("공식 채보를 받지 못했습니다: " + TDAccount.errorText(e), 4000); });
   }
@@ -1678,6 +1701,7 @@
   var rankCache = {};
   function rankingFor(c) {
     if (!TDAccount.me()) return { status: "none" };
+    if (c.old) return { status: "old" };
     if (!c.official) return { status: "custom" };
     if (rankCache[c.id]) return rankCache[c.id];
     rankCache[c.id] = { status: "loading" };

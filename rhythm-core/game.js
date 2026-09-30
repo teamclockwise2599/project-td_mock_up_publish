@@ -1377,8 +1377,8 @@
   function chartParts(c) { return { title: c.title, sub: TDC.difficultyLabel(c.difficulty) + " " + TDC.levelText(c.level) }; }
   function sessionParts() {
     if (!session) return null;
-    if (session.kind === "tutorial") return { title: "튜토리얼", sub: (tut.index + 1) + "/" + LESSONS.length + " · " + session.lesson.name };
-    if (session.kind === "setup") return { title: "처음 설정", sub: "가상 플레이" };
+    if (session.kind === "tutorial") return { title: "튜토리얼", sub: (session.lesson.optional ? "선택" : (tut.index + 1) + "/" + REQUIRED_LESSONS) + " · " + session.lesson.name };
+    if (session.kind === "setup") return setup && setup.kind === "notice" ? { title: setup.chart.title, sub: "어려움 · 리벳 겹침 안내" } : { title: "처음 설정", sub: "가상 플레이" };
     var p = chartParts(session.chart);
     if (session.kind === "test") p.title = "[테스트] " + p.title;
     return p;
@@ -1395,6 +1395,8 @@
   // 곡 선택·에디터 테스트에서 고른 채보로 시작한다. 음원을 불러온 뒤 카운트다운.
   // fromBeat: 테스트 플레이 시작 박자(그 앞 노트는 빼고 2초 전부터 튼다)
   function playChart(chart, kind, fromBeat) {
+    // 어려움을 처음 할 때(계정마다 한 번, 09-30): 리벳 겹침 패턴 안내를 먼저 띄운다
+    if (kind === "song" && chart.difficulty === "hard" && !save.noticeSeen("rivet")) { openRivetNotice(chart); return; }
     if (!buffers[chart.song]) toast("음원 불러오는 중…", 4000);
     loadSong(chart.song).then(function (buf) {
       var eng = TDC.toEngineChart(chart);
@@ -1581,7 +1583,7 @@
       if (info.newMedal && medal) best += ' · <span class="up">새 보더 ' + TDSave.MEDAL_LABEL[medal] + "</span>";
       // 랭킹: 공식 채보를 클리어한 판만 서버에 올린다
       if (session.chart.official && TDAccount.me()) { if (cleared) best += ' · <span id="result-upload">랭킹에 올리는 중…</span>'; }
-      else if (TDAccount.me()) best += " · 커스텀 채보라 랭킹에 올리지 않습니다";
+      else if (TDAccount.me()) best += session.chart.old ? " · 예전 버전이라 랭킹에 올리지 않습니다" : " · 커스텀 채보라 랭킹에 올리지 않습니다";
       if (info.unlocked.length) {
         unlock = "새로 열림: " + info.unlocked.map(function (id) {
           var c = library.charts.filter(function (x) { return x.id === id; })[0];
@@ -1649,8 +1651,16 @@
   // ================= 공식 채보 · 랭킹 =================
   // 공식 채보는 서버(소유자가 게시)에서 받는다. 같은 id의 로컬 채보는 공식판으로 바꾸고, 로컬에 없는 공식 채보는 더한다.
   // 나머지(이 기기에만 있는 채보)는 커스텀: 기록은 계정에 남지만 랭킹에는 올리지 않는다. 채보의 official = { row, version } 또는 null.
+  // 예전 공식 버전(09-30): 같은 채보에 지금 버전이 있을 때만(내린 채보는 숨김) 곡을 따로 한 줄 "제목 (old 게시한 날)"로 더한다.
+  //   채보 id · 곡 묶음은 "<원래>_old-v<버전>"(기록이 지금 버전과 따로 쌓인다), old = { row, version, date }, 랭킹 없음.
   var localCharts = []; // 이 기기의 채보(서버로 연 경우 charts 폴더, 아니면 사본)
-  var official = []; // 서버의 지금 버전 공식 채보(TDAccount.loadOfficialCharts)
+  var official = []; // 서버의 지금 버전 공식 채보
+  var officialOld = []; // 서버의 예전 버전(지금 버전이 있는 채보만)
+  function mmdd(iso) {
+    var d = new Date(iso);
+    function two(n) { return (n < 10 ? "0" : "") + n; }
+    return two(d.getMonth() + 1) + "-" + two(d.getDate());
+  }
   function withOfficial(charts) {
     var byId = {};
     official.forEach(function (o) { byId[o.chart_id] = o; });
@@ -1666,12 +1676,27 @@
       return fromServer(o);
     });
     Object.keys(byId).forEach(function (id) { out.push(fromServer(byId[id])); });
+    officialOld.forEach(function (o) {
+      var oc = TDC.normalizeChart(o.data, o.chart_id);
+      var tag = "_old-v" + o.version;
+      oc.id = o.chart_id + tag;
+      oc.songId = oc.songId + tag;
+      oc.title = oc.title + " (old " + mmdd(o.published_at) + ")";
+      oc.order = (oc.order || 0) + 1000; // 지금 버전들 아래
+      oc.official = null;
+      oc.old = { row: o.id, version: o.version, date: o.published_at };
+      out.push(oc);
+    });
     return out;
   }
   function refreshOfficial() {
     if (!TDAccount.me()) return Promise.resolve();
-    return TDAccount.loadOfficialCharts(MODE).then(function (rows) {
-      official = rows || [];
+    return TDAccount.loadOfficialAll(MODE).then(function (rows) {
+      rows = rows || [];
+      official = rows.filter(function (r) { return r.is_current; });
+      var live = {};
+      official.forEach(function (r) { live[r.chart_id] = true; });
+      officialOld = rows.filter(function (r) { return !r.is_current && live[r.chart_id]; }); // 내린 채보(지금 버전 없음)는 예전 버전까지 숨긴다
       rankCache = {};
     }, function (e) { toast("공식 채보를 받지 못했습니다: " + TDAccount.errorText(e), 4000); });
   }
@@ -1679,6 +1704,7 @@
   var rankCache = {};
   function rankingFor(c) {
     if (!TDAccount.me()) return { status: "none" };
+    if (c.old) return { status: "old" };
     if (!c.official) return { status: "custom" };
     if (rankCache[c.id]) return rankCache[c.id];
     rankCache[c.id] = { status: "loading" };
@@ -1770,7 +1796,7 @@
   function onEscape() {
     if ($("screen-settings").classList.contains("show")) { closeSettings(); return; }
     if (TEST_TAB) { backToEditor(); return; } // 테스트 플레이 탭: 어느 화면이든 에디터로
-    if (setup) { finishSetup(); return; } // 처음 설정: 지금 설정 그대로 마친다
+    if (setup) { if (setup.kind === "notice") closeNotice("select"); else finishSetup(); return; } // 처음 설정: 지금 설정 그대로 마친다 · 안내: 곡 선택으로
     if (mode === "layout") { closeLayout(); return; }
     if (mode === "select" && selectSettingsOpen) { setSelectSettings(false); return; } // 먼저 옆 설정을 접는다
     if (mode === "playing" || mode === "countdown") { if (!inTutorialPlay()) pauseGame(); } // 튜토리얼은 일시정지 없음
@@ -2524,10 +2550,25 @@
         "별 리벳이 시침에 닿을 때마다 <b>다른 키</b>로 한 번씩 칩니다. 이때 커서 위치는 상관없습니다.",
         "리벳을 놓치면 그 리벳만 미스입니다. 잡은 키는 롱처럼 <b>끝이 시침에 닿는 순간 뗍니다</b>(일찍 떼면 남은 것 전부 미스)."
       ],
-      // 리벳은 한 노트에 1개, 누른 뒤 2박째. 리벳과 탭이 겹치는 패턴은 튜토리얼에서 다루지 않는다(09-30 미공개)
+      // 리벳은 한 노트에 1개, 누른 뒤 2박째. 리벳과 탭이 겹치는 패턴은 선택 단계 「홀드앤탭 심화」에서 다룬다(09-30)
       notes: [[0, 4, 1, [2]], [8, 12, 2, [10]], [16, 20, 0, [18]], [24, 28, 3, [26]]].map(holdRow(TYPE.HOLDTAP))
+    },
+    {
+      // 선택 단계(09-30): 튜토리얼 완료 조건이 아니다. 어려움을 처음 할 때 알림 · 완료 카드 · 튜토리얼 카드 아래에서 들어온다.
+      key: "holdtap2", name: "홀드앤탭 심화", at: 160, optional: true,
+      // 시연: 홀드앤탭은 Z로 잡고(리벳은 X), 같은 순간의 탭은 좌클릭(엔진 노트 순서: 홀드앤탭 · 탭 · 홀드앤탭 · 탭 …)
+      demoKeys: ["Z", "M1"],
+      steps: [
+        "어려움부터 <b>홀드앤탭 리벳과 같은 순간에 탭</b>이 함께 옵니다.",
+        "홀드앤탭은 <b>한 키로 잡은 채</b>, 리벳은 <b>다른 키</b>로 칩니다(커서 위치 상관없음).",
+        "같은 순간의 탭은 <b>커서를 그 태엽 위에 두고 클릭</b>으로 칩니다. 한 순간에 입력이 3개입니다(잡은 키 + 리벳 키 + 클릭). 예: Z로 잡고 · 리벳은 X · 탭은 좌클릭."
+      ],
+      notes: [[0, 4, 1, [2]], [8, 12, 2, [10]], [16, 20, 0, [18]], [24, 28, 3, [26]]].map(holdRow(TYPE.HOLDTAP))
+        .concat([[2, 3], [10, 0], [18, 2], [26, 1]].map(tapRow))
     }
   ];
+  var ADV_INDEX = LESSONS.length - 1; // 「홀드앤탭 심화」(선택)
+  var REQUIRED_LESSONS = LESSONS.filter(function (l) { return !l.optional; }).length;
   function lessonIndexOf(key) {
     for (var i = 0; i < LESSONS.length; i++) if (LESSONS[i].key === key) return i;
     return -1;
@@ -2566,7 +2607,7 @@
     if (index === undefined || index < 0) {
       // 통과하지 못한 첫 단계부터(전부 통과했으면 처음부터)
       index = 0;
-      if (!save.tutorialDone()) for (var i = 0; i < LESSONS.length; i++) if (!save.data.tutorial.lessons[LESSONS[i].key]) { index = i; break; }
+      if (!save.tutorialDone()) for (var i = 0; i < REQUIRED_LESSONS; i++) if (!save.data.tutorial.lessons[LESSONS[i].key]) { index = i; break; }
     }
     showScreen(null);
     document.body.classList.add("tutorial");
@@ -2745,7 +2786,7 @@
     g.restore();
   }
   function drawDemoLabels(t) {
-    if (setup) return; // 처음 설정 화면은 실제 플레이처럼(튜토리얼 이름표 없음)
+    if (setup && setup.kind === "setup") return; // 처음 설정 화면은 실제 플레이처럼(튜토리얼 이름표 없음). 리벳 겹침 안내는 이름표를 보인다
     var lead = engine.leadTime(settings.leadDeg);
     var up = R * 0.13;
     var holdingAny = false;
@@ -2804,7 +2845,8 @@
     renderTutCard();
   }
   function nextLesson() {
-    if (tut.index < LESSONS.length - 1) { enterLesson(tut.index + 1); return; }
+    if (LESSONS[tut.index].optional) { tut.phase = "done"; tut.unlocked = []; renderTutCard(); return; } // 선택 단계를 마침(완료 조건과 무관)
+    if (tut.index < REQUIRED_LESSONS - 1) { enterLesson(tut.index + 1); return; }
     var wasDone = save.tutorialDone();
     save.setTutorialDone();
     tut.phase = "done";
@@ -2841,15 +2883,23 @@
   function renderTutCard() {
     var lesson = LESSONS[tut.index];
     var box = $("tut-card");
-    var dots = LESSONS.map(function (l, i) {
+    var optional = !!lesson.optional;
+    var dots = optional ? "" : LESSONS.slice(0, REQUIRED_LESSONS).map(function (l, i) {
       return '<i class="' + (i === tut.index && tut.phase !== "done" ? "cur" : save.data.tutorial.lessons[l.key] ? "done" : "") + '"></i>';
     }).join("");
-    var html = '<div class="tc-step">TUTORIAL · ' + (tut.index + 1) + " / " + LESSONS.length + "</div>";
+    var html = '<div class="tc-step">TUTORIAL · ' + (optional ? "선택 단계" : (tut.index + 1) + " / " + REQUIRED_LESSONS) + "</div>";
+    if (tut.phase === "done" && optional) {
+      html += "<h3>" + lesson.name + " 마침</h3>" +
+        '<div class="tc-status">리벳과 탭이 겹치는 패턴은 어려움부터 나옵니다.</div>' +
+        '<div class="stack"><button class="btn primary" data-tut="select">곡 선택으로 (Enter)</button><button class="btn" data-tut="play">한 번 더 해보기</button><button class="btn" data-tut="title">처음 화면</button></div>';
+      box.innerHTML = html;
+      return;
+    }
     if (tut.phase === "done") {
       html += "<h3>튜토리얼 완료</h3><div class=\"tc-dots\">" + dots + "</div>" +
         "<div class=\"tc-status\">조작을 모두 익혔습니다. 곡 선택에서 곡을 골라 연주하세요." +
         (tut.unlocked && tut.unlocked.length ? "<br><b>새로 열림:</b> " + tut.unlocked.map(function (c) { return TDUI.esc(c.title) + " [" + TDC.difficultyLabel(c.difficulty) + "]"; }).join(", ") : "") + "</div>" +
-        '<div class="stack"><button class="btn primary" data-tut="select">곡 선택으로 (Enter)</button><button class="btn" data-tut="title">처음 화면</button></div>';
+        '<div class="stack"><button class="btn primary" data-tut="select">곡 선택으로 (Enter)</button><button class="btn" data-tut="adv">' + LESSONS[ADV_INDEX].name + ' (선택)</button><button class="btn" data-tut="title">처음 화면</button></div>';
       box.innerHTML = html;
       return;
     }
@@ -2890,7 +2940,7 @@
       if (L.pass) {
         status = '<b class="pass">통과</b> · 미스 없이 ' + L.ok + " / " + L.total +
           "<br>P " + c.perfect + " · G " + c.great + " · Gd " + c.good + " · M " + c.miss;
-        btns = '<button class="btn primary" data-tut="next">' + (tut.index < LESSONS.length - 1 ? "다음 단계 (Enter)" : "튜토리얼 마치기 (Enter)") + '</button><button class="btn" data-tut="play">한 번 더 해보기</button>';
+        btns = '<button class="btn primary" data-tut="next">' + (!optional && tut.index < REQUIRED_LESSONS - 1 ? "다음 단계 (Enter)" : optional ? "심화 마치기 (Enter)" : "튜토리얼 마치기 (Enter)") + '</button><button class="btn" data-tut="play">한 번 더 해보기</button>';
       } else {
         status = '<b class="fail">아쉬워요</b> · 미스 없이 ' + L.ok + " / " + L.total + " (기준 " + L.need + "개)" +
           "<br>P " + c.perfect + " · G " + c.great + " · Gd " + c.good + " · M " + c.miss;
@@ -2900,6 +2950,7 @@
     }
     html += '<div class="tc-status">' + status + '</div><div class="stack">' + btns + "</div>" +
       '<div class="tc-quit">' + (!save.tutorialDone() && tut.phase !== "play" ? '<button data-tut="skip">튜토리얼 건너뛰기</button> · ' : "") +
+      (save.tutorialDone() && !optional && tut.phase !== "play" ? '<button data-tut="adv">' + LESSONS[ADV_INDEX].name + "(선택)</button> · " : "") +
       '<button data-tut="quit">튜토리얼 나가기' + (tut.phase === "play" ? "" : " (Esc)") + "</button></div>";
     box.innerHTML = html;
   }
@@ -2924,6 +2975,13 @@
     }
     else if (act === "skip-cancel") { tut.skipWarn = 0; renderTutCard(); }
     else if (act === "setup-done") finishSetup();
+    else if (act === "notice-practice") closeNotice("practice");
+    else if (act === "notice-back") closeNotice("select");
+    else if (act === "adv") {
+      if (mode === "demo") stopDemo();
+      if (mode === "playing" || mode === "countdown" || mode === "paused") quitPlay();
+      enterLesson(ADV_INDEX);
+    }
     else if (act === "select") closeTutorial(true);
     else if (act === "title") closeTutorial(false);
     else if (act === "quit") {
@@ -2955,7 +3013,7 @@
     document.body.classList.add("tutorial", "setup");
     resize();
     session = { kind: "setup", lesson: SETUP_LESSON, chart: null, from: lessonFrom(SETUP_LESSON) };
-    setup = { started: false };
+    setup = { started: false, kind: "setup", lesson: SETUP_LESSON };
     setSongLabel(sessionParts());
     demo = null;
     mode = "demo";
@@ -2966,7 +3024,7 @@
   // 가상 플레이를 처음부터: 지금 설정(회전 각도 등)으로 엔진을 새로 만들고 음원(있으면)과 함께 튼다
   function startSetupLoop() {
     if (!setup) return;
-    useEngine(lessonChart(SETUP_LESSON, true), setupEngineOptions());
+    useEngine(lessonChart(setup.lesson, true), setupEngineOptions());
     engine.reset();
     engine.drainEvents();
     popups = [];
@@ -2994,6 +3052,15 @@
   window.addEventListener("keydown", wakeSetup, true);
   function renderSetupCard() {
     var box = $("tut-card");
+    if (setup.kind === "notice") {
+      box.innerHTML = '<div class="tc-step">어려움 · 처음</div><h3>리벳 겹침 패턴</h3>' +
+        '<div class="tc-status">' + (setup.started ? "왼쪽에서 가상 플레이가 되풀이됩니다." : "화면을 한 번 누르면 가상 플레이가 시작됩니다.") + "</div>" +
+        "<ol>" + LESSONS[ADV_INDEX].steps.map(function (st) { return "<li>" + st + "</li>"; }).join("") + "</ol>" +
+        '<div class="tc-status">튜토리얼의 선택 단계 「' + LESSONS[ADV_INDEX].name + '」에서 직접 연습할 수 있습니다.</div>' +
+        '<div class="stack"><button class="btn primary" data-tut="setup-done">알겠어요, 시작 (Enter)</button><button class="btn" data-tut="notice-practice">' + LESSONS[ADV_INDEX].name + ' 연습</button></div>' +
+        '<div class="tc-quit"><button data-tut="notice-back">곡 선택으로 (Esc)</button></div>';
+      return;
+    }
     box.innerHTML = '<div class="tc-step">FIRST SETUP</div><h3>처음 설정</h3>' +
       '<div class="tc-status">' + (setup.started ? "왼쪽에서 가상 플레이가 계속 재생됩니다. 설정을 바꾸면 곧바로 그 설정으로 다시 재생됩니다."
         : "화면을 한 번 누르면 가상 플레이가 시작됩니다(브라우저는 누르기 전에는 소리를 낼 수 없습니다).") + "</div>" +
@@ -3002,11 +3069,35 @@
       '<div class="stack"><button class="btn primary" data-tut="setup-done">' + (firstRun ? "다음: 싱크 맞추기 (Enter)" : "완료 (Enter)") + "</button></div>";
     buildSettings($("setup-set"), SETUP_KEYS);
   }
-  function finishSetup() {
+  // 어려움 처음: 리벳 겹침 안내(가상 플레이 = 「홀드앤탭 심화」 노트). 띄우면 본 것으로 남긴다(계정).
+  function openRivetNotice(chart) {
+    save.markNotice("rivet");
+    showScreen(null);
+    document.body.classList.add("tutorial", "setup");
+    resize();
+    var lesson = LESSONS[ADV_INDEX];
+    session = { kind: "setup", lesson: lesson, chart: null, from: lessonFrom(lesson) };
+    setup = { started: false, kind: "notice", lesson: lesson, chart: chart };
+    setSongLabel(sessionParts());
+    demo = null;
+    mode = "demo";
+    renderSetupCard();
+    startSetupLoop();
+    loadSong(TUT_SONG.song).then(function (b) { audio.buffer = b; if (setup && setup.started) startSetupLoop(); }, function () { /* 음원이 없으면 소리 없이 시계만 */ });
+  }
+  // 안내 닫기: "play" 그 채보 시작 · "practice" 튜토리얼 심화 단계 · "select" 곡 선택으로
+  function closeNotice(to) {
     if (!setup) return;
+    var chart = setup.chart;
+    leaveDemoScreen();
+    if (to === "play") { playChart(chart, "song", 0); return; }
+    if (to === "practice") { openTutorial(ADV_INDEX); return; }
+    openSelect();
+  }
+  // 처음 설정 · 안내 화면을 걷는다(가상 플레이 멈춤)
+  function leaveDemoScreen() {
     setup = null;
-    settings.setupDone = true;
-    saveSettings();
+    mode = "title"; // 다음 화면을 여는 동안(예: 음원 불러오기) 시연 단계가 돌지 않게
     audio.stop();
     demo = null;
     demoCaps({});
@@ -3019,6 +3110,13 @@
     hudPrev = {};
     setSongLabel(null);
     resize();
+  }
+  function finishSetup() {
+    if (!setup) return;
+    if (setup.kind === "notice") { closeNotice("play"); return; }
+    leaveDemoScreen();
+    settings.setupDone = true;
+    saveSettings();
     if (firstRun) { openSync(); return; } // 처음 켠 경우: 싱크 맞추기 → 튜토리얼
     mode = "title";
     renderTitle();

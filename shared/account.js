@@ -251,6 +251,13 @@
         .eq("mode", mode).eq("is_current", true).then(unwrap);
     });
   }
+  // 이 유형의 공식 채보 모든 버전(승인 이상): 지금 버전 + 예전 버전(is_current = false). 게임이 예전 버전을 "(old 날짜)"로 보인다(09-30).
+  function loadOfficialAll(mode) {
+    return attempt(function () {
+      return getClient().from("official_charts").select("id, chart_id, version, is_current, rank_epoch, data, song_file, published_at")
+        .eq("mode", mode).order("chart_id").order("version").then(unwrap);
+    });
+  }
   // 공식 채보 게시(소유자). chart: 채보 파일 내용. 돌려주는 값: 새 줄 번호
   function publishChart(mode, chart, resetRanking) {
     return rpc("publish_chart", { p_mode: mode, p_chart_id: chart.id, p_data: chart, p_song_file: chart.song || null, p_reset_ranking: !!resetRanking });
@@ -357,7 +364,7 @@
     current: current, signIn: signIn, signUp: signUp, signOut: signOut, changePassword: changePassword, changeName: changeName, nameTaken: nameTaken,
     loadRules: loadRules, saveRules: saveRules, bindProgress: bindProgress,
     isOwner: function (acc) { return !!acc && acc.role === "owner"; },
-    loadOfficialCharts: loadOfficialCharts, publishChart: publishChart, submitScore: submitScore, getRanking: getRanking,
+    loadOfficialCharts: loadOfficialCharts, loadOfficialAll: loadOfficialAll, publishChart: publishChart, submitScore: submitScore, getRanking: getRanking,
     listMembers: listMembers, setMemberRole: setMemberRole, setBan: setBan, sendChartRequest: sendChartRequest, listChartRequests: listChartRequests, setRequestStatus: setRequestStatus, deleteChartRequest: deleteChartRequest,
     listOfficialVersions: listOfficialVersions, retireChart: retireChart, resetRanking: resetRanking
   };

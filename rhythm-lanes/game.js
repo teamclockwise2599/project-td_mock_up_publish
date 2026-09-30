@@ -2628,6 +2628,7 @@
         return [
           "네 고리는 안쪽부터 <b>" + keysText() + "</b> 키입니다. 시침 뒤에 붙은 글자가 각 고리의 키이고, 아래 키 칸은 누르는 동안 켜집니다.",
           "태엽이 시침에 닿는 순간 <b>그 고리의 키</b>를 한 번 누릅니다. 커서는 쓰지 않습니다.",
+          "태엽이 오지 않은 라인의 키를 누르면 라이프가 2 줄어듭니다. 태엽을 처리하지 못한 경우에는 라이프가 10 감소합니다.",
           "태엽 색은 손마다 다릅니다. " + kl(0) + "·" + kl(1) + "(왼손)는 놋쇠, " + kl(2) + "·" + kl(3) + "(오른손)는 푸른 강철. 판정은 퍼펙트 ±50ms · 그레이트 ±100ms · 굿 ±150ms.",
           "탭을 ±25ms 안에 치면 <b>PERFECT+</b>(이론치)입니다. 퍼펙트와 같게 치고 점수만 1점 더합니다. 롱에는 없습니다."
         ];
@@ -2694,11 +2695,12 @@
   function lessonFrom(lesson) { return Math.max(0, TUT_SONG.offset + ((lesson.at - TUT_PREROLL) * 60) / TUT_SONG.bpm); }
   // 카드만 떠 있는 동안 시계를 멈춰 둘 시각: 첫 노트들이 시침 앞에 보이도록
   function lessonIdleTime(lesson) { return TUT_SONG.offset + (lesson.at * 60) / TUT_SONG.bpm - engine.leadTime(settings.leadDeg) * 0.85; }
-  // 튜토리얼 판: 회전 30° 고정, 라이프가 줄지 않고(게임오버 없음), 되돌리기 없음
+  // 튜토리얼 판: 회전 30° 고정, 라이프가 줄지 않고(미스 · 공미스 모두, 게임오버 없음), 되돌리기 없음
   function tutEngineOptions() {
     var o = engineOptions();
     o.degPerBeat = TUT_DEG;
     o.lifePerMiss = 0;
+    o.lifePerEmpty = 0;
     o.rewindLimit = 0;
     return o;
   }
@@ -2945,15 +2947,23 @@
   function countsText(c) {
     return "P+ " + c.perfectPlus + " · P " + (c.perfect - c.perfectPlus) + " · G " + c.great + " · Gd " + c.good + " · M " + c.miss;
   }
+  // 튜토리얼을 한 번 마친 뒤: 진행 막대 대신 단계 버튼 줄. 누르면 그 단계로 바로 간다(직접 해보는 중에는 막음).
+  function lessonTabs() {
+    return '<div class="tc-tabs">' + LESSONS.map(function (l, i) {
+      var cls = (i === tut.index && tut.phase !== "done" ? "cur" : "") + (save.data.tutorial.lessons[l.key] ? " done" : "");
+      return '<button data-tut="goto" data-i="' + i + '" class="' + cls + '"' + (tut.phase === "play" ? " disabled" : "") + ">" + (l.optional ? l.name + "(선택)" : i + 1 + ". " + l.name) + "</button>";
+    }).join("") + "</div>";
+  }
   function renderTutCard() {
     var lesson = LESSONS[tut.index];
     var box = $("tut-card");
     var dots = LESSONS.map(function (l, i) {
       return '<i class="' + (i === tut.index && tut.phase !== "done" ? "cur" : save.data.tutorial.lessons[l.key] ? "done" : "") + '"></i>';
     }).join("");
+    var nav = save.tutorialDone() ? lessonTabs() : '<div class="tc-dots">' + dots + "</div>";
     var html = '<div class="tc-step">TUTORIAL · ' + (tut.index + 1) + " / " + LESSONS.length + "</div>";
     if (tut.phase === "done") {
-      html += "<h3>튜토리얼 완료</h3><div class=\"tc-dots\">" + dots + "</div>" +
+      html += "<h3>튜토리얼 완료</h3>" + nav +
         "<div class=\"tc-status\">조작을 모두 익혔습니다. 곡 선택에서 곡을 골라 연주하세요." +
         (tut.unlocked && tut.unlocked.length ? "<br><b>새로 열림:</b> " + tut.unlocked.map(function (c) { return TDUI.esc(c.title) + " [" + TDC.difficultyLabel(c.difficulty) + "]"; }).join(", ") : "") + "</div>" +
         '<div class="stack"><button class="btn primary" data-tut="select">곡 선택으로 (Enter)</button><button class="btn" data-tut="title">처음 화면</button></div>';
@@ -2963,7 +2973,7 @@
     // 건너뛰기 경고 두 번(09-30, 사용자). 기본 버튼(Enter)은 「튜토리얼 계속하기」라 실수로 건너뛰지 않는다.
     if (tut.skipWarn) {
       var second = tut.skipWarn >= 2;
-      html += "<h3>" + (second ? "정말 건너뛸까요?" : "튜토리얼을 건너뛸까요?") + '</h3><div class="tc-dots">' + dots + "</div>" +
+      html += "<h3>" + (second ? "정말 건너뛸까요?" : "튜토리얼을 건너뛸까요?") + "</h3>" + nav +
         '<div class="tc-status tc-warn">' + (second
           ? "튜토리얼을 마친 것으로 기록되어 쉬움 · 보통 채보가 열립니다.<br>처음 화면의 「튜토리얼」에서 언제든 다시 할 수 있습니다."
           : "튜토리얼은 이 유형의 조작과 노트 종류를 단계별로 익히는 과정입니다.<br>건너뛰면 조작을 익히지 않은 채 곡을 시작하게 됩니다.") + "</div>" +
@@ -2974,7 +2984,7 @@
     }
     var phaseText = { loading: "음원 준비 중", intro: "곧 시연", demo: "시연 중 · 되풀이", ready: "대기", play: "직접 해보는 중", result: "결과" }[tut.phase];
     var live = tut.phase === "demo" || tut.phase === "play";
-    html += "<h3>" + lesson.name + '</h3><div class="tc-dots">' + dots + "</div>" +
+    html += "<h3>" + lesson.name + "</h3>" + nav +
       '<span class="tc-phase' + (live ? " live" : "") + '">' + phaseText + "</span>" +
       "<ol>" + lesson.steps().map(function (s) { return "<li>" + s + "</li>"; }).join("") + "</ol>";
     var status = "";
@@ -3028,6 +3038,11 @@
     }
     else if (act === "skip-cancel") { tut.skipWarn = 0; renderTutCard(); }
     else if (act === "setup-done") finishSetup();
+    else if (act === "goto") {
+      if (mode === "demo" || mode === "rewinding") stopDemo();
+      if (mode === "playing" || mode === "countdown" || mode === "paused") quitPlay();
+      enterLesson(+b.getAttribute("data-i"));
+    }
     else if (act === "select") closeTutorial(true);
     else if (act === "title") closeTutorial(false);
     else if (act === "quit") {
@@ -3050,6 +3065,7 @@
   function setupEngineOptions() {
     var o = engineOptions(); // 회전 · 되돌리기 간격은 설정값 그대로
     o.lifePerMiss = 0;
+    o.lifePerEmpty = 0;
     o.rewindLimit = 0;
     return o;
   }

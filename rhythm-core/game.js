@@ -2982,6 +2982,13 @@
   }
 
   // ---------- 오른쪽 카드 ----------
+  // 튜토리얼을 한 번 마친 뒤: 진행 막대 대신 단계 버튼 줄. 누르면 그 단계로 바로 간다(직접 해보는 중에는 막음).
+  function lessonTabs() {
+    return '<div class="tc-tabs">' + LESSONS.map(function (l, i) {
+      var cls = (i === tut.index && tut.phase !== "done" ? "cur" : "") + (save.data.tutorial.lessons[l.key] ? " done" : "");
+      return '<button data-tut="goto" data-i="' + i + '" class="' + cls + '"' + (tut.phase === "play" ? " disabled" : "") + ">" + (l.optional ? l.name + "(선택)" : i + 1 + ". " + l.name) + "</button>";
+    }).join("") + "</div>";
+  }
   function renderTutCard() {
     var lesson = LESSONS[tut.index];
     var box = $("tut-card");
@@ -2989,6 +2996,7 @@
     var dots = optional ? "" : LESSONS.slice(0, REQUIRED_LESSONS).map(function (l, i) {
       return '<i class="' + (i === tut.index && tut.phase !== "done" ? "cur" : save.data.tutorial.lessons[l.key] ? "done" : "") + '"></i>';
     }).join("");
+    var nav = save.tutorialDone() ? lessonTabs() : '<div class="tc-dots">' + dots + "</div>";
     var html = '<div class="tc-step">TUTORIAL · ' + (optional ? "선택 단계" : (tut.index + 1) + " / " + REQUIRED_LESSONS) + "</div>";
     if (tut.phase === "done" && optional) {
       html += "<h3>" + lesson.name + " 마침</h3>" +
@@ -2998,7 +3006,7 @@
       return;
     }
     if (tut.phase === "done") {
-      html += "<h3>튜토리얼 완료</h3><div class=\"tc-dots\">" + dots + "</div>" +
+      html += "<h3>튜토리얼 완료</h3>" + nav +
         "<div class=\"tc-status\">조작을 모두 익혔습니다. 곡 선택에서 곡을 골라 연주하세요." +
         (tut.unlocked && tut.unlocked.length ? "<br><b>새로 열림:</b> " + tut.unlocked.map(function (c) { return TDUI.esc(c.title) + " [" + TDC.difficultyLabel(c.difficulty) + "]"; }).join(", ") : "") + "</div>" +
         '<div class="stack"><button class="btn primary" data-tut="select">곡 선택으로 (Enter)</button><button class="btn" data-tut="adv">' + LESSONS[ADV_INDEX].name + ' (선택)</button><button class="btn" data-tut="title">처음 화면</button></div>';
@@ -3008,7 +3016,7 @@
     // 건너뛰기 경고 두 번(09-30, 사용자). 기본 버튼(Enter)은 「튜토리얼 계속하기」라 실수로 건너뛰지 않는다.
     if (tut.skipWarn) {
       var second = tut.skipWarn >= 2;
-      html += "<h3>" + (second ? "정말 건너뛸까요?" : "튜토리얼을 건너뛸까요?") + '</h3><div class="tc-dots">' + dots + "</div>" +
+      html += "<h3>" + (second ? "정말 건너뛸까요?" : "튜토리얼을 건너뛸까요?") + "</h3>" + nav +
         '<div class="tc-status tc-warn">' + (second
           ? "튜토리얼을 마친 것으로 기록되어 쉬움 · 보통 채보가 열립니다.<br>처음 화면의 「튜토리얼」에서 언제든 다시 할 수 있습니다."
           : "튜토리얼은 이 유형의 조작과 노트 종류를 단계별로 익히는 과정입니다.<br>건너뛰면 조작을 익히지 않은 채 곡을 시작하게 됩니다.") + "</div>" +
@@ -3019,7 +3027,7 @@
     }
     var phaseText = { loading: "음원 준비 중", intro: "곧 시연", demo: "시연 중 · 되풀이", ready: "대기", play: "직접 해보는 중", result: "결과" }[tut.phase];
     var live = tut.phase === "demo" || tut.phase === "play";
-    html += "<h3>" + lesson.name + '</h3><div class="tc-dots">' + dots + "</div>" +
+    html += "<h3>" + lesson.name + "</h3>" + nav +
       '<span class="tc-phase' + (live ? " live" : "") + '">' + phaseText + "</span>" +
       "<ol>" + lesson.steps.map(function (s) { return "<li>" + s + "</li>"; }).join("") + "</ol>";
     var status = "";
@@ -3052,7 +3060,6 @@
     }
     html += '<div class="tc-status">' + status + '</div><div class="stack">' + btns + "</div>" +
       '<div class="tc-quit">' + (!save.tutorialDone() && tut.phase !== "play" ? '<button data-tut="skip">튜토리얼 건너뛰기</button> · ' : "") +
-      (save.tutorialDone() && !optional && tut.phase !== "play" ? '<button data-tut="adv">' + LESSONS[ADV_INDEX].name + "(선택)</button> · " : "") +
       '<button data-tut="quit">튜토리얼 나가기' + (tut.phase === "play" ? "" : " (Esc)") + "</button></div>";
     box.innerHTML = html;
   }
@@ -3083,6 +3090,11 @@
       if (mode === "demo") stopDemo();
       if (mode === "playing" || mode === "countdown" || mode === "paused") quitPlay();
       enterLesson(ADV_INDEX);
+    }
+    else if (act === "goto") {
+      if (mode === "demo" || mode === "rewinding") stopDemo();
+      if (mode === "playing" || mode === "countdown" || mode === "paused") quitPlay();
+      enterLesson(+b.getAttribute("data-i"));
     }
     else if (act === "select") closeTutorial(true);
     else if (act === "title") closeTutorial(false);

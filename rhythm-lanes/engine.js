@@ -21,6 +21,7 @@
     maxScore: 1000000,
     lifeMax: 200,
     lifePerMiss: 10,
+    lifePerEmpty: 2, // 공미스(판정 범위에 노트가 없는 레인을 친 것) 한 번에 깎는 라이프. 콤보·판정 수에는 영향 없음
     laneRadii: [0.30, 0.49, 0.68, 0.87], // 안쪽부터 0~3번 레인
     spiralPerTurn: 0.06, // 누르는 노트가 한 바퀴 돌 때 바깥으로 벌어지는 거리
     hitRadius: 0.14, // 커서가 노트 중심에서 이만큼 안에 있어야 친 것으로 본다(태엽 반지름 0.093보다 조금 넓게)
@@ -114,6 +115,7 @@
         combo: 0, maxCombo: 0,
         log: [], // 판정 기록(되감을 때 이 기록으로 점수·콤보를 다시 계산한다)
         failures: [], // 실수 기록(라이프 계산용). 한 번의 실수 = 라이프 1칸
+        empties: [], // 공미스 기록(라이프 계산용). { time }
         rewindsUsed: 0, penalty: 0,
         gameOver: false, gameOverTime: null,
         events: []
@@ -174,16 +176,28 @@
     }
 
     function life() {
-      return Math.max(0, cfg.lifeMax - cfg.lifePerMiss * st.failures.length);
+      return Math.max(0, cfg.lifeMax - cfg.lifePerMiss * st.failures.length - cfg.lifePerEmpty * st.empties.length);
     }
 
-    function addFailure(note, musicTime) {
-      st.failures.push({ noteT: note.t, time: musicTime });
+    function checkGameOver(musicTime) {
       if (!st.gameOver && life() <= 0) {
         st.gameOver = true;
         st.gameOverTime = musicTime;
         st.events.push({ kind: "gameover" });
       }
+    }
+
+    function addFailure(note, musicTime) {
+      st.failures.push({ noteT: note.t, time: musicTime });
+      checkGameOver(musicTime);
+    }
+
+    // 공미스: 라이프만 lifePerEmpty 깎는다(lifePerEmpty가 0이면 기록하지 않는다).
+    function emptyPress(lane, t) {
+      if (!cfg.lifePerEmpty) return;
+      st.empties.push({ time: t });
+      st.events.push({ kind: "empty", lane: lane });
+      checkGameOver(t);
     }
 
     // 노트 하나를 통째로 놓친 경우: 남은 판정 칸을 전부 미스로 채우되, 라이프는 한 번만 깎는다.
@@ -273,7 +287,8 @@
         }
         return n; // 맞힌 노트(참 값)
       }
-      return false; // 빈 레인을 친 것은 벌점 없음
+      emptyPress(lane, t); // 빈 레인을 친 것 = 공미스
+      return false;
     }
 
     function release(key, t) {
@@ -381,6 +396,7 @@
       notes.forEach(function (n) { if (n.t > b) resetNote(n); });
       st.log = st.log.filter(function (e) { return e.noteT < b; });
       st.failures = st.failures.filter(function (f) { return f.noteT < b; });
+      st.empties = st.empties.filter(function (x) { return x.time < b; });
       st.counts = { perfect: 0, great: 0, good: 0, miss: 0, perfectPlus: 0 };
       st.combo = 0;
       st.maxCombo = 0;

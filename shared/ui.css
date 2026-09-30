@@ -201,6 +201,12 @@ body.tutorial #hud-right #rewinds{visibility:hidden}
 #tut-card .tc-dots i{width:22px;height:5px;border-radius:3px;background:#DCCDAF}
 #tut-card .tc-dots i.done{background:var(--great)}
 #tut-card .tc-dots i.cur{background:var(--brass)}
+/* 튜토리얼을 마친 뒤의 단계 버튼 줄(10-01): 누르면 그 단계로 */
+#tut-card .tc-tabs{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 10px}
+#tut-card .tc-tabs button{font:inherit;font-size:12.5px;padding:3px 9px;border-radius:10px;border:1px solid var(--line);background:#F0E6D2;color:var(--wood-dark);cursor:pointer}
+#tut-card .tc-tabs button.done{border-color:var(--great)}
+#tut-card .tc-tabs button.cur{background:var(--brass-hi);border-color:var(--wood);font-weight:700}
+#tut-card .tc-tabs button:disabled{opacity:.5;cursor:default}
 #tut-card .tc-status{min-height:22px;font-size:14px;color:var(--ink-2);margin-bottom:10px;line-height:1.6}
 #tut-card .tc-status .pass{color:var(--great);font-weight:700}
 #tut-card .tc-status .fail{color:var(--miss);font-weight:700}

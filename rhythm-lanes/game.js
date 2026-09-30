@@ -1982,7 +1982,7 @@
   // ================= 설정 =================
   // locked: 서버의 게임 규칙(목업별). 관리자 이상만 바꾸고, 바꾸면 모든 플레이어에게 적용된다(맨 아래에 모아 둔다)
   var SETTING_DEFS = [
-    { key: "degPerBeat", label: "박자당 회전 각도", options: [[90, "90° · 4박에 한 바퀴"], [60, "60° · 6박에 한 바퀴"], [45, "45° · 8박에 한 바퀴"], [30, "30° · 12박에 한 바퀴"]] },
+    { key: "degPerBeat", label: "박자당 회전 각도", range: [15, 150, 15] }, // 15° 단위 15 ~ 150°(09-30), 슬라이더
     { key: "rewindSeconds", label: "되돌리기 간격", options: [[2, "2초"], [3, "3초"], [4, "4초"], [5, "5초"]] },
     { key: "leadDeg", label: "노트 등장 시점", options: [[180, "반 바퀴 전"], [270, "3/4 바퀴 전"]] },
     { key: "showDelta", label: "판정 오차 표시", options: [[true, "켜기"], [false, "끄기"]] },
@@ -2092,6 +2092,42 @@
       var k = row(d.label, seg, null, SETTING_HELP[d.key]);
       if (playLocked) playLockNote(k);
     }
+    // 슬라이더 줄(박자당 회전 각도): 옆에 "90° · 4박에 한 바퀴". 움직이는 동안 바로 적용(처음 설정 화면은 가상 플레이가 곧바로 다시 돈다)
+    function degText(x) { return x + "° · " + Math.round(3600 / x) / 10 + "박에 한 바퀴"; }
+    function rangeRow(d) {
+      var playLocked = inPlay && PLAY_LOCKED.indexOf(d.key) >= 0;
+      var wrap = document.createElement("div");
+      wrap.className = "range-row";
+      var r = document.createElement("input");
+      r.type = "range";
+      r.min = d.range[0];
+      r.max = d.range[1];
+      r.step = d.range[2];
+      r.value = settings[d.key];
+      r.disabled = playLocked;
+      var v = document.createElement("b");
+      v.className = "range-val";
+      v.textContent = degText(settings[d.key]);
+      r.oninput = function () {
+        var x = +r.value;
+        v.textContent = degText(x);
+        if (x === settings[d.key]) return;
+        settings[d.key] = x;
+        saveSettings();
+        engine.setOptions(engineOptions());
+        buildDialCache();
+        if (setup) setupChanged(d.key);
+      };
+      wrap.appendChild(r);
+      wrap.appendChild(v);
+      var k = row(d.label, wrap, null, SETTING_HELP[d.key]);
+      if (playLocked) {
+        var note = document.createElement("small");
+        note.className = "k-note";
+        note.textContent = "연주 중 변경 불가";
+        k.appendChild(note);
+      }
+    }
     var vol = document.createElement("input");
     vol.type = "range";
     vol.min = 0;
@@ -2130,7 +2166,7 @@
       goSync.onclick = function () { syncReturn = "select"; keyCapture = null; audio.resume().then(openSync); };
     }
     if (want("offsetMs")) row("싱크 오프셋", off, goSync, SETTING_HELP.offsetMs);
-    SETTING_DEFS.forEach(function (d) { if (!d.locked && want(d.key)) segRow(d); });
+    SETTING_DEFS.forEach(function (d) { if (!d.locked && want(d.key)) { if (d.range) rangeRow(d); else segRow(d); } });
     var hv = document.createElement("input");
     hv.type = "range";
     hv.min = 0;

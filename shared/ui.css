@@ -215,6 +215,10 @@ body.tutorial #hud-right #rewinds{visibility:hidden}
 #tut-card .set{grid-template-columns:1fr;gap:3px 0;margin:6px 0 10px}
 #tut-card .set .k{margin-top:9px;font-size:13px}
 #tut-card .set input[type=range]{width:100%}
+/* 슬라이더 줄(박자당 회전 각도, 09-30) */
+.set .range-row{display:flex;align-items:center;gap:10px}
+.set .range-row input[type=range]{flex:1;min-width:0}
+.set .range-row .range-val{font-size:13px;color:var(--wood-dark);white-space:nowrap;min-width:9.5em}
 #tut-card .tc-quit button{font:inherit;border:0;background:none;color:var(--mute);text-decoration:underline;cursor:pointer;padding:0}
 
 /* 난이도 칸 나란히(diffSlots): 칸마다 난이도·레벨·상태·최고 점수·등급·보더·노트 */

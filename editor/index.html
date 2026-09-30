@@ -112,6 +112,7 @@ input[type=range]{width:100%;accent-color:var(--brass)}
 #song-info{font-size:12px;color:var(--mute);margin-top:7px;line-height:1.5;word-break:break-all}
 #song-info.err{color:var(--err)}
 #song-server{font-size:12px;color:var(--mute)}
+#song-server-row[hidden]{display:none} /* .row의 display:flex가 hidden을 덮지 않게(소유자에게만 보인다) */
 #song-server.none{color:var(--err)}
 #bpm-info{font-size:12px;color:var(--mute);margin-top:7px}
 #auto-bpm{font-family:Cinzel,serif;font-weight:700;font-size:16px;color:var(--wood-dark);min-width:5.4em;text-align:center}
@@ -161,6 +162,16 @@ canvas#stage{position:absolute;inset:0;width:100%;height:100%;display:block;curs
 /* 시간 막대 */
 #timeline-wrap{padding:6px 14px 4px;border-top:1.5px solid var(--line);background:linear-gradient(#F4EBDA,#EFE3CC)}
 #timeline{display:block;width:100%;height:50px;cursor:pointer;touch-action:none}
+/* 이 페이지 시침 게이지(09-30): 한 바퀴 범위, 끌어서 시침(재생 위치)을 옮긴다 */
+#page-gauge{display:flex;align-items:center;gap:10px;margin:0 0 5px}
+#page-gauge[hidden]{display:none}
+#page-gauge .pg-k{font-size:12px;color:var(--ink-2);white-space:nowrap}
+#pg-track{position:relative;flex:1;height:18px;border:1.5px solid var(--wood);border-radius:9px;background:var(--card);cursor:ew-resize;touch-action:none;overflow:hidden}
+#pg-ticks i{position:absolute;top:3px;bottom:3px;width:1px;background:rgba(107,66,38,.22)}
+#pg-ticks i.beat{top:1px;bottom:1px;background:rgba(107,66,38,.55)}
+#pg-fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,rgba(226,184,90,.25),rgba(226,184,90,.55));pointer-events:none}
+#pg-thumb{position:absolute;top:1px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:linear-gradient(#E8C271,#C99A40);border:1.5px solid var(--wood-dark);box-shadow:0 1px 0 var(--wood-dark);pointer-events:none}
+#pg-label{font-size:12px;color:var(--ink-2);min-width:9.5em;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
 #status{height:26px;line-height:26px;padding:0 16px;font-size:13px;color:var(--ink-2);background:#EFE3CC;border-top:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #status.ok{color:var(--ok)}
 #status.warn{color:var(--warn)}
@@ -324,7 +335,10 @@ canvas#stage{position:absolute;inset:0;width:100%;height:100%;display:block;curs
   </aside>
 </main>
 
-<footer id="timeline-wrap"><canvas id="timeline" title="눌러서 재생 위치를 옮깁니다"></canvas></footer>
+<footer id="timeline-wrap">
+  <div id="page-gauge" hidden><span class="pg-k">이 페이지 시침</span><div id="pg-track" title="끌어서 이 페이지 안에서 시침(재생 위치)을 옮깁니다 · Shift를 누른 채 끌면 스냅에 맞춤"><div id="pg-ticks"></div><div id="pg-fill"></div><div id="pg-thumb"></div></div><span id="pg-label"></span></div>
+  <canvas id="timeline" title="눌러서 재생 위치를 옮깁니다"></canvas>
+</footer>
 <div id="status"></div>
 
 <!-- 권한: 관리자 이상만 연다 -->
@@ -409,15 +423,15 @@ canvas#stage{position:absolute;inset:0;width:100%;height:100%;display:block;curs
 
 <!-- 서버 연결 라이브러리(Supabase, 버전 고정). 관리자 이상인지 확인한다(shared/account.js) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
-<script src="../shared/version.js?v=0.1.8"></script>
-<script src="../shared/config.js?v=0.1.8"></script>
-<script src="../shared/songcrypt.js?v=0.1.8"></script>
-<script src="../shared/account.js?v=0.1.8"></script>
-<script src="../shared/chart-format.js?v=0.1.8"></script>
-<script src="../shared/library.js?v=0.1.8"></script>
-<script src="editor-model.js?v=0.1.8"></script>
-<script src="bpm-detect.js?v=0.1.8"></script>
-<script src="../shared/ui.js?v=0.1.8"></script><!-- 새 버전 안내(watchVersion)만 쓴다 -->
-<script src="editor.js?v=0.1.8"></script>
+<script src="../shared/version.js?v=0.1.9"></script>
+<script src="../shared/config.js?v=0.1.9"></script>
+<script src="../shared/songcrypt.js?v=0.1.9"></script>
+<script src="../shared/account.js?v=0.1.9"></script>
+<script src="../shared/chart-format.js?v=0.1.9"></script>
+<script src="../shared/library.js?v=0.1.9"></script>
+<script src="editor-model.js?v=0.1.9"></script>
+<script src="bpm-detect.js?v=0.1.9"></script>
+<script src="../shared/ui.js?v=0.1.9"></script><!-- 새 버전 안내(watchVersion)만 쓴다 -->
+<script src="editor.js?v=0.1.9"></script>
 </body>
 </html>

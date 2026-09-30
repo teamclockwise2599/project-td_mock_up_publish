@@ -2868,8 +2868,64 @@
   });
 
   // ================= 매 프레임 =================
+  // ---- 이 페이지 시침 게이지(09-30, 사용자) ----
+  // 시간 막대 위 한 줄: 지금 페이지(한 바퀴) 범위에서 끌어 시침(재생 위치)을 옮긴다. 시계 판을 끌면 노트 편집과 부딪히므로 따로 둔다.
+  // 기본은 자유 위치, Shift를 누른 채면 지금 스냅에 맞춘다. 재생 중에 끌면 잠깐 멈췄다가 손을 떼면 그 자리부터 다시 튼다.
+  var gaugeSig = "", gaugeDrag = null;
+  function refreshGauge() {
+    var box = $("page-gauge");
+    box.hidden = !chart;
+    if (!chart) return;
+    var ps = pageStart(), bpp = ed.bpp, div = prefs.div;
+    var sig = ps + "|" + bpp + "|" + div;
+    if (sig !== gaugeSig) {
+      gaugeSig = sig;
+      var html = "";
+      for (var i = 1; i < bpp * div; i++) html += '<i class="' + (i % div === 0 ? "beat" : "") + '" style="left:' + (i / (bpp * div) * 100).toFixed(3) + '%"></i>';
+      $("pg-ticks").innerHTML = html;
+    }
+    var b = currentBeat();
+    var f = clamp((b - ps) / bpp, 0, 1);
+    var pct = (f * 100).toFixed(2) + "%";
+    $("pg-thumb").style.left = pct;
+    $("pg-fill").style.width = pct;
+    var txt = M.fmtBeat(Math.max(0, b)) + "박 · " + M.fmtTime(Math.max(0, timeOfBeat(b)));
+    if ($("pg-label").textContent !== txt) $("pg-label").textContent = txt;
+  }
+  function gaugeBeat(e) {
+    var r = $("pg-track").getBoundingClientRect();
+    var ps = pageStart();
+    var b = ps + clamp((e.clientX - r.left) / r.width, 0, 1) * ed.bpp;
+    if (e.shiftKey) b = M.snapBeat(b, prefs.div);
+    return Math.round(clamp(b, ps, ps + ed.bpp - 1e-4) * 10000) / 10000; // 다음 페이지로 넘어가지 않게
+  }
+  function gaugeMove(e) {
+    playBeat = gaugeBeat(e);
+    needsDraw = true;
+    needsTimeline = true;
+    refreshPageInfo();
+  }
+  $("pg-track").addEventListener("pointerdown", function (e) {
+    if (!chart || e.button !== 0 || drag) return;
+    e.preventDefault();
+    gaugeDrag = { resume: audio.running };
+    if (audio.running) stopPlayback();
+    $("pg-track").setPointerCapture(e.pointerId);
+    gaugeMove(e);
+  });
+  $("pg-track").addEventListener("pointermove", function (e) { if (gaugeDrag) gaugeMove(e); });
+  function gaugeEnd() {
+    if (!gaugeDrag) return;
+    var resume = gaugeDrag.resume;
+    gaugeDrag = null;
+    if (resume) startPlayback(); // 그 자리부터 다시
+  }
+  $("pg-track").addEventListener("pointerup", gaugeEnd);
+  $("pg-track").addEventListener("lostpointercapture", gaugeEnd);
+
   function frame(now) {
     requestAnimationFrame(frame);
+    refreshGauge();
     if (audio.running && chart) {
       stepPlayback();
       needsDraw = true;

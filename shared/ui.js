@@ -688,7 +688,13 @@
       } else if (tab === "members" && banTarget) {
         html += banFormHtml();
       } else if (tab === "members") {
-        var active = members.filter(function (m) { return m.role === "owner" || m.role === "admin" || m.role === "player"; });
+        // 순서(09-30): 소유자 → 관리자 → 플레이어 → 밴된 계정. 같은 무리 안은 가입 순(서버가 준 순서)
+        var ORDER = { owner: 0, admin: 1, player: 2 };
+        var groupOf = function (m) { return A.isBanned(m) ? 3 : ORDER[m.role]; };
+        var active = members.filter(function (m) { return m.role === "owner" || m.role === "admin" || m.role === "player"; })
+          .map(function (m, i) { return { m: m, i: i }; })
+          .sort(function (x, y) { return groupOf(x.m) - groupOf(y.m) || x.i - y.i; })
+          .map(function (x) { return x.m; });
         html += '<ul class="adm-list">' + active.map(function (m) {
           if (m.role === "owner") return memberRow(m, []);
           var ban = A.isBanned(m) ? { label: "밴 해제", act: "unban", ask: m.display_name + " 계정의 밴을 풉니다." } : { label: "밴", act: "ban" };

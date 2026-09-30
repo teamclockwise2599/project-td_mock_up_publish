@@ -1585,8 +1585,8 @@
       else best = "아직 클리어 기록이 없습니다";
       best += " · 클리어 " + rec.clears + "회"; // 플레이 횟수 대신 클리어 횟수
       if (info.newMedal && medal) best += ' · <span class="up">새 보더 ' + TDSave.MEDAL_LABEL[medal] + "</span>";
-      // 랭킹: 공식 채보를 클리어한 판만 서버에 올린다
-      if (session.chart.official && TDAccount.me()) { if (cleared) best += ' · <span id="result-upload">랭킹에 올리는 중…</span>'; }
+      // 랭킹: 공식 채보의 판은 클리어 · 게임오버 모두 서버에 올린다(09-30, 게임오버는 랭킹에 FAIL로)
+      if (session.chart.official && TDAccount.me()) best += ' · <span id="result-upload">랭킹에 올리는 중…</span>';
       else if (TDAccount.me()) best += session.chart.old ? " · 예전 버전이라 랭킹에 올리지 않습니다" : " · 커스텀 채보라 랭킹에 올리지 않습니다";
       if (info.unlocked.length) {
         unlock = "새로 열림: " + info.unlocked.map(function (id) {
@@ -1598,7 +1598,7 @@
       best = "테스트 플레이라 기록하지 않습니다";
     }
     $("result-best").innerHTML = best;
-    if (session.kind === "song" && cleared && session.chart.official && TDAccount.me()) uploadScore(session.chart, result, medal);
+    if (session.kind === "song" && session.chart.official && TDAccount.me()) uploadScore(session.chart, result, medal, cleared);
     $("result-unlock").innerHTML = unlock;
     $("result-unlock").hidden = !unlock;
     $("btn-result-select").textContent = TEST_TAB ? "에디터로 (Esc)" : "곡 선택";
@@ -1724,10 +1724,10 @@
     return rankCache[c.id];
   }
   // 공식 채보를 클리어하면 기록을 서버에 올린다(규칙 값을 함께 보내, 서버의 지금 규칙과 다르면 거절된다).
-  function uploadScore(chart, result, medal) {
+  function uploadScore(chart, result, medal, cleared) {
     var el = $("result-upload");
     TDAccount.submitScore({
-      row: chart.official.row, cleared: true, score: result.score, grade: TDSave.rankOf(result.score), medal: medal,
+      row: chart.official.row, cleared: !!cleared, score: result.score, grade: cleared ? TDSave.rankOf(result.score) : null, medal: medal, // 게임오버는 등급 없이 FAIL
       maxCombo: result.maxCombo, rewindsUsed: result.rewindsUsed, rewindLimit: settings.rewindLimit, rewindPenalty: settings.rewindPenalty
     }).then(function () {
       delete rankCache[chart.id];

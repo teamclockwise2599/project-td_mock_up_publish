@@ -2680,8 +2680,8 @@
     var items = songs.map(function (s) { return { v: s, label: s + ((lib.songs || []).indexOf(s) < 0 ? " (songs 폴더에 없음)" : "") }; });
     if (!items.length) items = [{ v: "", label: "songs 폴더에 음원이 없습니다", disabled: true }];
     fillSelect($("f-song"), items, editing ? c.song : songs[0] || "");
-    $("f-song-hint").textContent = (lib.songs || []).length ? (ONLINE ? "songs/ 폴더의 음원 " : "음원 사본(서버 없이 열림) ") + lib.songs.length + "개" :
-      ONLINE ? "songs/ 폴더에 음원(mp3·ogg·wav·m4a)을 넣고 새로고침하세요" : "서버 없이 열려 있어 사본이 있는 음원만 보입니다. start.bat으로 실행하세요";
+    $("f-song-hint").textContent = (lib.songs || []).length ? (ONLINE ? "songs/ 폴더의 음원 " : "서버에 올린 음원 · 이 기기 사본 ") + lib.songs.length + "개" :
+      ONLINE ? "songs/ 폴더에 음원(mp3·ogg·wav·m4a)을 넣고 새로고침하세요" : "고를 수 있는 음원이 없습니다. 소유자가 에디터 「음원 올리기」로 서버에 올린 음원이 여기에 나옵니다";
     $("f-song-hint").className = "hint" + ((lib.songs || []).length ? "" : " bad");
     fillSelect($("f-diff"), TDChart.DIFFICULTIES.map(function (d) { return { v: d.key, label: d.label + " (" + d.short + ")" }; }), editing ? c.difficulty : "normal");
     $("f-title").value = editing ? c.title : songTitleOf($("f-song").value);

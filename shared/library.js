@@ -69,9 +69,18 @@
       });
     }
     var charts = (root.TD_CHART_BUNDLE || []).map(function (c) { return TDChart.normalizeChart(c, c.id); });
-    return offlineSongs().then(function (map) {
-      return { online: false, charts: charts, songs: Object.keys(map), errors: [] };
+    // 음원 목록 = 이 기기의 사본 + 서버에 올린 음원(09-30: 공개 페이지 에디터에서 고를 음원이 비어 있었다)
+    return Promise.all([offlineSongs(), serverSongList()]).then(function (r) {
+      var names = Object.keys(r[0]);
+      r[1].forEach(function (f) { if (names.indexOf(f) < 0) names.push(f); });
+      return { online: false, charts: charts, songs: names, errors: [] };
     });
+  }
+  // 서버에 올린 음원 파일 이름(승인 이상 · 로그인해 있을 때). 못 읽으면 빈 목록.
+  function serverSongList() {
+    var A = root.TDAccount;
+    if (!A || !A.listSongs || !A.me || !A.me()) return Promise.resolve([]);
+    return A.listSongs().then(function (rows) { return (rows || []).map(function (x) { return x.song_file; }); }, function () { return []; });
   }
 
   // 음원 파일 → ArrayBuffer(해독하면 넘긴 버퍼가 비므로 부를 때마다 새 사본을 준다)

@@ -1,0 +1,231 @@
+/* 두 목업이 같이 쓰는 화면 조각: 계정 창, 곡 선택, 보더·등급 배지, 결과 기록.
+   색·버튼·패널(.screen .panel .btn)은 각 목업 index.html의 것을 그대로 쓴다. 라이트 테마 하나만 둔다. */
+
+/* ---------- 배지 ---------- */
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:2.1em;height:22px;padding:0 7px;border-radius:6px;font-family:Cinzel,serif;font-weight:700;font-size:12px;letter-spacing:.04em;border:1.5px solid rgba(42,26,14,.55);white-space:nowrap}
+/* 보더: AP 진한 테마색(갈색 주황) · FC 파랑 · CLEAR 녹색 · FAIL 회색 */
+.badge.m-ap{background:linear-gradient(#D98A3D,#A8561C);color:#FFF6E8;border-color:#6B3410}
+.badge.m-fc{background:linear-gradient(#DCEBFA,#8FB6E0);color:#173E6E;border-color:#2F5F96}
+.badge.m-clear{background:linear-gradient(#E3F2DE,#A9D29C);color:#1F5A2A;border-color:#3C7D45}
+.badge.m-fail{background:#E2DFDA;color:#6B6660;border-color:#A39D95}
+.badge.nr{background:#E3F0E6;color:#2E6B45;border-color:#2E7D4F;font-family:"Gowun Batang",serif;font-size:11.5px;letter-spacing:0}
+.badge.rw{background:#F2EAE0;color:#8A7560;border-color:#B9A889;font-family:"Gowun Batang",serif;font-size:11.5px;letter-spacing:0}
+.badge.rank{min-width:2.3em;background:#FBF6EC;color:#3F2616}
+/* 등급: S+ 진한 금 · S 금 · A 은 · B 동 · C 옅은 갈 · D 회색 */
+.badge.rank.r-sp{background:linear-gradient(#E9BE4E,#9A6A0A);color:#FFF8E0;border-color:#5E4006}
+.badge.rank.r-s{background:linear-gradient(#FFF1C4,#E8C271);color:#4A3006}
+.badge.rank.r-a{background:linear-gradient(#F4F6F8,#BCC5CE);color:#34404C}
+.badge.rank.r-b{background:linear-gradient(#F4DCC4,#C8946A);color:#4A2A12}
+.badge.rank.r-c{background:#EFE4D2;color:#6B5238}
+.badge.rank.r-d{background:#E4E0DA;color:#6B655E}
+.badge.new{background:#A83232;color:#FFF;border-color:#6E1F1F;font-size:10.5px;height:18px;padding:0 5px}
+.badge.lock{background:#E4DCCB;color:#6B5A48;border-color:#B9A889;font-family:"Gowun Batang",serif;font-size:11.5px;letter-spacing:0}
+
+/* ---------- 곡 선택 ---------- */
+/* 가운데 곡 선택 창은 늘 제자리, 왼쪽 칸에 랭킹. 오른쪽 칸은 비워 둬 가운데를 맞춘다(플레이 설정은 그 위로 밀려 들어온다) */
+#screen-select.show{display:grid;grid-template-columns:minmax(250px,1fr) minmax(0,980px) minmax(250px,1fr);column-gap:16px;align-items:center;align-content:center;overflow:hidden}
+.panel.ss-panel{grid-column:2;width:100%;padding:22px 26px}
+.panel.ss-ranking{grid-column:1;justify-self:end;align-self:stretch;width:min(310px,100%);padding:20px 20px 16px;display:flex;flex-direction:column;gap:10px}
+.rk-head h2{margin:0}
+.rk-sub{font-size:13px;color:var(--ink-2);margin-top:2px}
+.rk-list{list-style:none;margin:0;padding:4px;border:1px solid var(--line);border-radius:10px;background:#F0E6D2;max-height:min(46vh,420px);overflow:auto}
+.rk-list li{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:7px;background:#FBF6EC;margin-bottom:3px;font-size:13.5px}
+.rk-no{font-family:Cinzel,serif;font-weight:700;min-width:1.6em;color:var(--wood-dark)}
+.rk-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rk-score{font-family:Cinzel,serif;font-weight:700;color:var(--wood-dark)}
+.rk-empty{flex:1;display:flex;align-items:center;justify-content:center;padding:26px 14px;text-align:center;word-break:keep-all;font-size:13px;color:var(--mute);line-height:1.7;border:1px dashed var(--line);border-radius:10px;background:#F4ECDC}
+.rk-mine{margin-top:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:8px;border-top:1px dashed var(--line);font-size:13px}
+.rk-mine .rk-k{color:var(--mute);flex:1}
+.rk-mine .rk-none{color:var(--mute)}
+@media (max-width:1100px){#screen-select.show{grid-template-columns:minmax(0,980px);justify-content:center}.panel.ss-panel{grid-column:1}.panel.ss-ranking{display:none}}
+.ss-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.ss-head h2{margin:0}
+.ss-head .grow{flex:1}
+.ss-head .ss-count{font-size:13px;color:var(--mute)}
+/* 나눠 보기(전체 · 공식 · 커스텀) */
+.ss-filter{display:inline-flex;border:1.5px solid var(--wood);border-radius:8px;overflow:hidden;box-shadow:0 2px 0 var(--wood)}
+.ss-filter button{font-family:inherit;font-size:13px;padding:4px 11px;border:0;border-left:1.5px solid var(--line);background:#FBF6EC;color:var(--ink-2);cursor:pointer}
+.ss-filter button:first-child{border-left:0}
+.ss-filter button:hover{background:#FFFDF6}
+.ss-filter button.on{background:linear-gradient(#E8C271,#C99A40);color:var(--wood-dark);font-weight:700}
+.ss-body{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:16px;min-height:360px}
+.ss-songs{list-style:none;margin:0;padding:4px;border:1px solid var(--line);border-radius:10px;background:#F0E6D2;overflow:auto;max-height:min(58vh,520px)}
+.ss-song{padding:10px 12px;border-radius:8px;border:2px solid transparent;cursor:pointer;margin-bottom:4px;background:#FBF6EC}
+.ss-song:hover{background:#FFFDF6}
+.ss-song.on{border-color:var(--wood);background:#FFF8E6;box-shadow:0 2px 0 var(--wood)}
+.ss-song.locked{opacity:.62}
+.ss-song .t{font-size:16px;font-weight:700;color:var(--wood-dark);display:flex;align-items:center;gap:6px}
+.ss-song .a{font-size:12.5px;color:var(--mute);margin-top:2px}
+.ss-song .b{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.ss-detail{display:flex;flex-direction:column;gap:10px;min-width:0}
+.ss-title{font-family:Cinzel,"Gowun Batang",serif;font-size:26px;font-weight:700;color:var(--wood-dark);line-height:1.2}
+.ss-meta{font-size:13.5px;color:var(--ink-2)}
+.ss-diffs{display:flex;flex-direction:column;gap:6px}
+.ss-diff{display:grid;grid-template-columns:5.2em 3.4em 1fr auto;align-items:center;gap:8px;text-align:left;font-family:inherit;font-size:14px;padding:9px 12px;border-radius:9px;border:2px solid var(--line);background:#FBF6EC;color:var(--ink);cursor:pointer}
+.ss-diff:hover{background:#FFFDF6}
+.ss-diff.on{border-color:var(--wood);background:#FFF3D6;box-shadow:0 2px 0 var(--wood)}
+.ss-diff.locked{color:var(--mute);background:#EFE8DA}
+.ss-diff .d-name{font-weight:700;color:var(--wood-dark)}
+.ss-diff.locked .d-name{color:var(--mute)}
+.ss-diff .d-lv{font-family:Cinzel,serif;font-size:13px;color:var(--ink-2)}
+.ss-diff .d-state{font-size:13px;color:var(--ink-2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ss-diff .d-state .ok{color:var(--great);font-weight:700}
+.ss-diff .d-state .no{color:var(--miss)}
+.ss-diff .d-right{display:flex;align-items:center;gap:5px;justify-content:flex-end}
+.ss-diff .d-score{font-family:Cinzel,serif;font-weight:700;font-size:14px;color:var(--wood-dark);min-width:5.6em;text-align:right}
+.ss-rec{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.ss-rec div{background:#F0E6D2;border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:12px;color:var(--mute)}
+.ss-rec b{display:block;font-family:Cinzel,"Gowun Batang",serif;font-size:17px;color:var(--wood-dark);margin-top:2px;font-weight:700}
+.ss-rec .wide{grid-column:span 2}
+.ss-borders{display:flex;gap:6px;flex-wrap:wrap;align-items:center;min-height:24px;font-size:13px;color:var(--ink-2)}
+.ss-foot{display:flex;align-items:center;gap:10px;margin-top:auto;padding-top:6px}
+.ss-foot .hint{font-size:12.5px;color:var(--mute);flex:1}
+.ss-actions{display:flex;flex-direction:column;align-items:stretch;gap:6px} /* 위에서부터 「UI 조정」 · 「설정」(있으면), 「시작」 */
+.ss-empty{padding:30px 10px;text-align:center;color:var(--mute);line-height:1.8}
+.ss-notice{margin-top:10px;font-size:12.5px;color:var(--ink-2);background:#F4ECDC;border:1px dashed var(--line);border-radius:8px;padding:8px 10px;line-height:1.6}
+.ss-notice.err{color:var(--miss)}
+@media (max-width:760px){.ss-body{grid-template-columns:1fr}.ss-rec{grid-template-columns:repeat(2,1fr)}}
+
+/* ---------- 결과 화면 기록 ---------- */
+.res-badges{display:flex;gap:6px;justify-content:center;align-items:center;flex-wrap:wrap;margin:-4px 0 12px;min-height:24px}
+.res-badges .badge{height:26px;font-size:13px}
+.res-best{font-size:13.5px;color:var(--ink-2);margin:-6px 0 12px}
+.res-best .up{color:var(--great);font-weight:700}
+.res-best .no{color:var(--miss)}
+.res-unlock{margin:0 0 14px;padding:9px 12px;border-radius:8px;background:#FFF3D6;border:1.5px solid var(--brass);font-size:14px;color:var(--wood-dark)}
+
+/* ---------- 계정(켤 때 안내문 · 로그인 · 승인 대기 · 비밀번호 변경 · 처음 화면 계정 줄) ---------- */
+.screen.acc-screen{z-index:30;background:rgba(243,236,223,.94)}
+.panel.acc-panel{width:min(440px,100%)}
+.panel.acc-notice{width:min(540px,100%)}
+.acc-panel.shake{animation:gateShake .35s}
+.acc-rights{display:grid;grid-template-columns:3em 1fr;gap:8px 12px;margin:4px 0 18px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#F4ECDC;font-size:14px;line-height:1.6}
+.acc-rights dt{font-weight:700;color:var(--wood-dark)}
+.acc-rights dd{margin:0}
+.acc-actions{justify-content:center}
+.panel .acc-copy{margin:14px 0 0;text-align:center;font-size:12px;color:var(--mute)}
+.acc-tabs{display:flex;gap:6px;margin-bottom:14px}
+.acc-tabs button{flex:1;font:inherit;font-size:15px;padding:8px;border-radius:8px;border:2px solid var(--line);background:#FBF6EC;color:var(--ink-2);cursor:pointer}
+.acc-tabs button.on{border-color:var(--wood);background:var(--brass-hi);color:var(--wood-dark);font-weight:700}
+.acc-form label{display:block;font-size:13.5px;color:var(--ink-2)}
+.acc-form input{width:100%;font:inherit;font-size:16px;padding:9px 12px;border-radius:8px;border:2px solid var(--line);background:#FFFDF6;color:var(--ink);margin:4px 0 10px}
+.acc-form input:focus{outline:none;border-color:var(--wood)}
+.acc-form > .btn{width:100%}
+.acc-note{font-size:12px;color:var(--mute)}
+.acc-form label.acc-check{display:flex;align-items:center;gap:7px;margin:-2px 0 8px;cursor:pointer}
+.acc-check input{width:auto;margin:0;padding:0;accent-color:var(--brass)}
+.panel .acc-hint{margin:12px 0 0;font-size:12.5px;color:var(--mute);line-height:1.6}
+.gate-msg.ok{color:var(--great)}
+.title-account{display:flex;align-items:center;gap:8px;margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);font-size:14px}
+.title-account[hidden]{display:none}
+.title-account .acc-name{font-weight:700;color:var(--wood-dark)}
+.title-account .acc-role{font-size:12px;color:var(--ink-2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;background:#F4ECDC}
+.title-account .grow{flex:1}
+.acc-server{font-size:12px;font-weight:700;border-radius:6px;padding:1px 7px;border:1.5px solid}
+.acc-server.test{color:#2E6B45;border-color:#2E7D4F;background:#E3F0E6}
+.acc-server.live{color:#FFF6E8;border-color:#6E1F1F;background:#A83232} /* 로컬에서 운영 서버를 쓸 때: 눈에 띄게 */
+
+/* 공식 · 커스텀 표시, 랭킹 줄(내 기록 강조 · 리와인드 규칙) */
+.badge.official{background:#FFF3D6;color:#6E4C10;border-color:#B8862B;font-family:"Gowun Batang",serif;font-size:11.5px;letter-spacing:0}
+.badge.custom{background:#EFE8DA;color:#6B5A48;border-color:#B9A889;font-family:"Gowun Batang",serif;font-size:11.5px;letter-spacing:0}
+.badge.undeployed{background:transparent;color:#A83232;border:1.5px dashed #A83232;font-family:"Gowun Batang",serif;font-size:11.5px;letter-spacing:0;margin-left:4px}
+.rk-list li{flex-wrap:wrap}
+.rk-list li.me{background:#FFF3D6;box-shadow:inset 0 0 0 1.5px var(--brass)}
+.rk-tags{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;padding-left:2.1em}
+.rk-rw{font-size:11.5px;color:var(--mute)}
+/* 관리자 화면 */
+.panel.adm-panel{width:min(760px,100%)}
+.adm-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.adm-head h2{margin:0}
+.adm-head .grow{flex:1}
+.adm-list{list-style:none;margin:0 0 6px;padding:0;display:flex;flex-direction:column;gap:6px;max-height:min(56vh,520px);overflow:auto}
+.adm-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--line);border-radius:9px;background:#FBF6EC}
+.adm-main{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;font-size:14.5px}
+.adm-main .acc-role{font-size:12px;color:var(--ink-2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;background:#F4ECDC}
+.adm-sub{flex-basis:100%;font-size:12.5px;color:var(--mute)}
+.adm-note{flex-basis:100%;font-size:13px;color:var(--ink-2);white-space:pre-wrap;background:#F4ECDC;border-radius:6px;padding:5px 8px}
+.adm-acts{display:flex;gap:6px;flex:none}
+.adm-empty{padding:18px 10px;text-align:center;color:var(--mute);font-size:13.5px;list-style:none}
+.adm-h3{font-size:15px;margin:14px 0 6px;color:var(--wood-dark)}
+.adm-msg{margin:8px 0 0}
+.adm-main .acc-role.adm-banned{color:#FFF6E8;background:#A83232;border-color:#6E1F1F}
+.adm-ban{padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#FBF6EC}
+.adm-ban p{margin:0 0 10px;font-size:14px}
+.adm-ban-days{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:10px;font-size:13.5px;color:var(--ink-2)}
+.adm-ban-days input{width:5.5em;font:inherit;padding:4px 8px;border:1.5px solid var(--line);border-radius:7px;background:#FFFDF6}
+.adm-ban-or{color:var(--mute);margin:0 2px 0 6px}
+.adm-ban-reason{width:100%;font:inherit;font-size:14px;padding:7px 10px;border:1.5px solid var(--line);border-radius:8px;background:#FFFDF6;margin-bottom:10px}
+.panel .acc-ban-reason{font-size:14px;color:var(--ink-2);background:#F4ECDC;border-radius:8px;padding:8px 10px}
+.adm-chart{flex-wrap:wrap}
+.adm-versions{flex-basis:100%;list-style:none;margin:4px 0 0;padding:6px 0 0;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:4px}
+.adm-versions li{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-2)}
+.adm-versions .grow{flex:1}
+
+/* 패치노트(안내문 창) · 새 버전 안내(화면 위) */
+.pn{margin:0 0 16px;padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:#FBF6EC;max-height:32vh;overflow:auto;font-size:13.5px;line-height:1.6}
+.pn-title{font-weight:700;color:var(--wood-dark);margin-bottom:2px}
+.pn-head{font-size:12.5px;color:var(--ink-2);margin-top:4px}
+.pn ul{margin:2px 0 4px;padding-left:1.2em}
+.pn details{margin-top:6px}
+.pn summary{cursor:pointer;font-size:12.5px;color:var(--mute)}
+.ver-banner{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:10px;max-width:calc(100vw - 32px);padding:9px 12px 9px 16px;background:var(--panel);border:2px solid var(--wood);border-radius:10px;box-shadow:0 3px 0 var(--wood),0 10px 24px rgba(63,38,22,.2);font-size:14px;color:var(--ink)}
+.ver-banner b{color:var(--wood-dark)}
+
+/* 계정 창의 안내 문구 · 흔들기 */
+.gate-msg{min-height:20px;font-size:13px;color:var(--miss);margin-bottom:10px}
+@keyframes gateShake{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+
+/* ---------- 연주 중 보더·콤보(왼쪽 아래) ---------- */
+#hud-bl{left:18px;bottom:14px;width:210px;display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+#border-chips{display:flex;gap:5px;flex-wrap:wrap;min-height:22px}
+.chip{display:inline-flex;align-items:center;height:21px;padding:0 8px;border-radius:11px;font-family:Cinzel,serif;font-weight:700;font-size:10.5px;letter-spacing:.08em;border:1.5px solid rgba(42,26,14,.5);transition:opacity .25s,transform .25s}
+.chip.ap{background:linear-gradient(#D98A3D,#A8561C);color:#FFF6E8}
+.chip.fc{background:linear-gradient(#DCEBFA,#8FB6E0);color:#173E6E}
+.chip.nr{background:#E3F0E6;color:#2E6B45;border-color:#2E7D4F}
+.chip.gone{opacity:0;transform:scale(.8)}
+#combo{font-family:Cinzel,serif;font-weight:700;font-size:44px;line-height:1;color:var(--wood-dark);font-variant-numeric:tabular-nums;text-shadow:0 2px 0 #E2B85A}
+#combo.zero{color:#B9A889;text-shadow:none}
+#combo.bump{animation:comboBump .12s ease-out}
+@keyframes comboBump{0%{transform:scale(1.12)}100%{transform:scale(1)}}
+#song-label{font-size:12.5px;color:var(--ink-2);margin-bottom:4px;max-width:210px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ---------- 튜토리얼 카드(오른쪽) ---------- */
+#tut-card{position:fixed;right:18px;top:78px;width:340px;max-height:calc(100vh - 210px);overflow:auto;display:none;z-index:6;background:var(--panel);border:2px solid var(--wood);border-radius:12px;box-shadow:0 0 0 4px #E6D6B6,0 0 0 6px var(--wood),0 12px 28px rgba(63,38,22,.2);padding:16px 18px}
+body.tutorial #tut-card{display:block}
+body.tutorial #hud-right #rewinds{visibility:hidden}
+#tut-card .tc-step{font-family:Cinzel,serif;font-size:12px;letter-spacing:.18em;color:var(--mute)}
+#tut-card h3{margin:2px 0 8px;font-size:21px;color:var(--wood-dark)}
+#tut-card ol{margin:0 0 10px;padding-left:1.25em;font-size:14px;line-height:1.65;color:var(--ink)}
+#tut-card ol li{margin:2px 0}
+#tut-card .tc-dots{display:flex;gap:5px;margin:6px 0 10px}
+#tut-card .tc-dots i{width:22px;height:5px;border-radius:3px;background:#DCCDAF}
+#tut-card .tc-dots i.done{background:var(--great)}
+#tut-card .tc-dots i.cur{background:var(--brass)}
+#tut-card .tc-status{min-height:22px;font-size:14px;color:var(--ink-2);margin-bottom:10px;line-height:1.6}
+#tut-card .tc-status .pass{color:var(--great);font-weight:700}
+#tut-card .tc-status .fail{color:var(--miss);font-weight:700}
+#tut-card .tc-phase{display:inline-block;font-size:12px;padding:2px 8px;border-radius:10px;background:#F0E6D2;border:1px solid var(--line);color:var(--wood-dark);margin-bottom:6px}
+#tut-card .tc-phase.live{background:var(--brass-hi);border-color:var(--wood)}
+#tut-card .stack{gap:8px}
+#tut-card .tc-quit{margin-top:10px;font-size:12.5px;color:var(--mute);text-align:right}
+#tut-card .tc-quit button{font:inherit;border:0;background:none;color:var(--mute);text-decoration:underline;cursor:pointer;padding:0}
+
+/* 난이도 칸 나란히(diffSlots): 칸마다 난이도·레벨·상태·최고 점수·등급·보더·노트 */
+.ss-dcols{display:grid;gap:10px}
+.ss-dcard{display:flex;flex-direction:column;align-items:stretch;gap:6px;text-align:left;font-family:inherit;padding:12px 13px;border-radius:10px;border:2px solid var(--line);background:#FBF6EC;color:var(--ink);cursor:pointer;min-width:0}
+.ss-dcard:hover{background:#FFFDF6}
+.ss-dcard.on{border-color:var(--wood);background:#FFF3D6;box-shadow:0 3px 0 var(--wood)}
+.ss-dcard.locked{color:var(--mute);background:#EFE8DA}
+.ss-dcard.empty{cursor:default;background:#F1EBDF;border-style:dashed;color:var(--mute)}
+.ss-dcard .dc-head{display:flex;align-items:center;gap:6px}
+.ss-dcard .dc-head .badge{height:19px;font-size:10.5px;padding:0 5px}
+.ss-dcard .dc-name{font-weight:700;font-size:16px;color:var(--wood-dark)}
+.ss-dcard.locked .dc-name,.ss-dcard.empty .dc-name{color:var(--mute)}
+.ss-dcard .dc-lv{font-family:Cinzel,serif;font-size:13px;color:var(--ink-2);margin-left:auto}
+.ss-dcard .dc-state{font-size:12.5px;color:var(--ink-2);min-height:1.4em}
+.ss-dcard .dc-state .ok{color:var(--great);font-weight:700}
+.ss-dcard .dc-state .no{color:var(--miss)}
+.ss-dcard .dc-score{font-family:Cinzel,serif;font-weight:700;font-size:22px;color:var(--wood-dark);line-height:1.1}
+.ss-dcard .dc-badges{display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-height:22px;font-size:12px;color:var(--ink-2)}
+.ss-dcard .dc-meta{font-size:12px;color:var(--mute)}
+.ss-dcard .dc-none{font-size:13px;margin-top:auto;margin-bottom:auto}

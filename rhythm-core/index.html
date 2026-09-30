@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>프로젝트 TD 리듬게임 파트 목업</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet">
+<link href="../shared/ui.css" rel="stylesheet">
+<style>
+:root{
+  --paper:#F3ECDF; --paper-2:#EBDFC8; --panel:#F8F2E6;
+  --ink:#2B1D12; --ink-2:#5E4834; --mute:#8A7560; --line:#CDB894;
+  --wood:#6B4226; --wood-dark:#3F2616; --brass:#B8862B; --brass-hi:#E2B85A;
+  --perfect-plus:#B97F0A; --perfect:#A8740E; --great:#2E7D4F; --good:#3D6BA8; --miss:#A83232;
+  --tap:#D6A437; --long:#C4642F; --chase:#2F8C74; --holdtap:#3F67AE;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{background:radial-gradient(ellipse at 50% 45%,#F8F2E6 0%,var(--paper) 55%,#E8DCC4 100%);color:var(--ink);
+  font-family:"Gowun Batang","Batang","AppleMyungjo",serif;user-select:none;-webkit-user-select:none}
+body.playing{cursor:none}
+canvas#stage{position:fixed;inset:0;width:100vw;height:100vh;display:block;z-index:3;pointer-events:none} /* 시계·노트는 늘 맨 위(점수 등 UI보다 위) */
+canvas#stage-bg{position:fixed;inset:0;width:100vw;height:100vh;display:block;z-index:0;pointer-events:none} /* 구석 장식 톱니는 맨 아래 */
+
+/* HUD */
+/* 가운데 위·아래는 시계에 내주고 네 귀퉁이에 둔다. 상자 크기를 고정해야 시계 크기 계산이 흔들리지 않는다. */
+.hud-box{position:fixed;pointer-events:none;z-index:2}
+#hud-left{top:14px;left:18px}
+#hud-title{position:fixed;left:18px;top:12px;z-index:2;pointer-events:none;max-width:min(520px,40vw);height:58px} /* 높이 고정: 아래 상자들의 기준 자리 */
+#hud-title.right{left:auto;right:18px;text-align:right}
+#hud-title .title-sub{display:flex;align-items:baseline;gap:10px}
+#hud-title.right .title-sub{flex-direction:row-reverse} /* 오른쪽 정렬이면 되돌리기가 난이도 왼쪽 */
+#hud-title.beside-pause{left:74px}
+#hud-title.right.beside-pause{left:auto;right:74px}
+#btn-pause.at-left{right:auto;left:18px}
+#song-title{font-family:Cinzel,"Gowun Batang",serif;font-weight:700;font-size:26px;line-height:1.2;color:var(--wood-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#song-diff{font-size:16px;font-weight:700;color:var(--ink-2);margin-top:2px;white-space:nowrap}
+#hud-acc{display:flex;align-items:baseline;gap:8px}
+#penalty{font-size:12.5px;color:#A83232;min-height:0}
+#acc{font-family:Cinzel,serif;font-weight:700;font-size:20px;color:var(--wood-dark);font-variant-numeric:tabular-nums}
+/* 라이프 표시 유형 */
+#hud-life.life-number #life-cells{display:none}
+#hud-life.life-gauge #life-num{display:none}
+/* 판정 표시: 완전형(이름 + 수) · 간략형(색으로만 구분한 수) */
+#counts .jg{display:flex;align-items:baseline;gap:10px;font-size:16px;line-height:1.45}
+#counts .jg .n{font-family:Cinzel,serif;font-weight:700;min-width:2.2em;text-align:right;font-variant-numeric:tabular-nums}
+#counts .jg .nm{font-family:Cinzel,serif;font-weight:700;min-width:5.2em;letter-spacing:.03em}
+#counts .jc{display:flex;gap:6px}
+#counts .jc span{display:inline-flex;align-items:center;justify-content:center;min-width:2.6em;height:28px;padding:0 7px;border-radius:7px;font-family:Cinzel,serif;font-weight:700;font-size:17px;color:#FFF;font-variant-numeric:tabular-nums}
+#counts .jg.plus .nm{text-shadow:0 0 6px rgba(246,215,127,.95)}
+#counts .jc span.plus{background:linear-gradient(180deg,#E9BE4E,#A8740E)!important;box-shadow:0 0 6px rgba(246,215,127,.9)}
+#guide,#hud-border,#hud-combo,#hud-left,#hud-judge,#hud-acc,#hud-life{width:max-content} /* 기준 자리가 오른쪽이어도 폭이 줄어들지 않게 */
+#hud-border{left:18px;bottom:84px}
+#hud-combo{left:18px;bottom:14px;display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+body.combo-in-clock #hud-combo{display:none} /* 콤보를 시계 안에 그리는 경우 */
+body.guide-keys #guide .g-rewind,body.guide-keys #guide .g-pause{display:none} /* 조작 안내: 조작 키만 */
+body.guide-off #guide{display:none}
+/* UI 조정 */
+.panel.layout-panel{position:fixed;right:206px;top:12px;width:400px;z-index:12;padding:0 0 14px;max-height:calc(100vh - 24px)} /* 기본 자리: 오른쪽 일시정지 · 조작 안내 칸 왼쪽, 위에서부터 화면 높이만큼 */
+.layout-panel .lp-head{display:flex;align-items:center;gap:6px;padding:14px 18px 8px;cursor:move;user-select:none;position:sticky;top:0;background:var(--panel);z-index:1}
+.layout-panel .lp-head h2{margin:0;font-size:19px}
+.layout-panel .lp-head .grow{flex:1}
+.layout-panel .lp-tip{margin:0 18px 8px;font-size:12px;color:var(--mute)}
+.layout-panel .lp-item{margin:0 18px;padding:9px 0;border-top:1px dashed var(--line)}
+.layout-panel .lp-name{font-weight:700;color:var(--wood-dark);font-size:14px;margin-bottom:5px}
+.layout-panel .lp-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2)}
+.layout-panel .lp-row + .lp-row{margin-top:5px}
+.layout-panel .lp-tag{font-size:12px;color:var(--mute);margin-left:4px}
+.layout-panel .lp-tag:first-child{margin-left:0}
+.layout-panel .lp-size{width:84px;accent-color:var(--brass)}
+.layout-panel .lp-size-v{min-width:3em;font-family:Cinzel,serif;font-size:12px;color:var(--wood-dark)}
+.layout-panel .lp-row .seg button{padding:4px 9px;font-size:12.5px}
+.layout-panel .lp-row input[type=number]{width:4em;font-family:inherit;font-size:13px;padding:3px 5px;border:1.5px solid var(--line);border-radius:6px;background:#FBF6EC;color:var(--ink)}
+body.layout-edit .hud-box{pointer-events:auto;cursor:move;outline:2px dashed rgba(107,66,38,.55);outline-offset:4px;border-radius:4px}
+body.layout-edit .hud-box.drag{outline-color:var(--brass);background:rgba(226,184,90,.12)}
+body.layout-edit #btn-pause{pointer-events:none}
+body.layout-edit canvas#stage{opacity:.42} /* 편집 중에는 시계를 반투명하게: 아래 상자가 보이고 끌린다 */
+body.layout-edit .hud-box.under-clock{outline-color:#B23A2A}
+body.layout-edit .hud-box.under-clock::after{content:"시계에 가려짐";position:absolute;left:0;top:100%;margin-top:6px;font:700 11px "Gowun Batang",serif;color:#FFF;background:#B23A2A;padding:1px 6px;border-radius:4px;white-space:nowrap}
+.label{font-family:Cinzel,serif;font-size:11px;letter-spacing:.24em;color:var(--mute)}
+#score{font-family:Cinzel,serif;font-weight:700;font-size:30px;letter-spacing:.06em;color:var(--wood-dark);line-height:1.1}
+#counts{color:var(--ink-2);font-variant-numeric:tabular-nums}
+#counts b{font-weight:700}
+.life{display:flex;align-items:baseline;gap:8px;margin-top:8px}
+#life-cells{display:inline-flex;gap:2px;padding:4px;margin-top:3px;border:1.5px solid var(--wood);border-radius:5px;background:#E6D8BC}
+#life-cells i{display:block;width:7px;height:12px;border-radius:2px;background:linear-gradient(#E9C46A,#B8862B);box-shadow:inset 0 -1px 0 rgba(0,0,0,.2)}
+#life-cells i.off{background:#D6C6A6;box-shadow:none}
+#life-cells.low i:not(.off){background:linear-gradient(#E07B5F,#A83232)}
+#life-num{font-family:Cinzel,serif;font-weight:700;font-size:15px;min-width:2.4em;text-align:left;color:var(--wood-dark)}
+/* 콤보 알림: 25 단위마다 화면 한가운데에 잠깐 뜬다(상시 콤보는 왼쪽 아래) */
+#combo-burst{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:3;text-align:center;opacity:0;font-family:Cinzel,serif;color:var(--wood-dark);padding:22px 34px;border-radius:50%;background:radial-gradient(closest-side,rgba(251,245,232,.88),rgba(251,245,232,.6) 60%,rgba(251,245,232,0))}
+#combo-burst .n{font-size:64px;font-weight:700;line-height:1;text-shadow:0 0 6px #FBF5E8,0 0 16px #FBF5E8,0 3px 0 #E2B85A}
+#combo-burst .l{font-size:14px;letter-spacing:.4em;color:var(--brass);margin-top:4px;text-shadow:0 0 6px #FBF5E8,0 0 10px #FBF5E8}
+#combo-burst.pop{animation:comboPop .95s ease-out forwards}
+#combo-burst.static{animation:none;opacity:1}
+@keyframes comboPop{0%{opacity:0;transform:translate(-50%,-50%) scale(1.35)}15%{opacity:1;transform:translate(-50%,-50%) scale(1)}70%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(.96)}}
+/* 빈사 경고: 화면 가장자리 붉은빛이 천천히 깜박인다 */
+#danger{position:fixed;inset:0;pointer-events:none;z-index:1;opacity:0;box-shadow:inset 0 0 110px 26px rgba(190,40,30,.55)}
+body.danger #danger{animation:dangerPulse 1.8s ease-in-out infinite}
+@keyframes dangerPulse{0%,100%{opacity:.1}50%{opacity:.55}}
+@media (prefers-reduced-motion: reduce){body.danger #danger{animation:none;opacity:.3}}
+#rewinds{font-size:12px;color:var(--mute);white-space:nowrap} /* 난이도 옆에 작게 */
+#rewinds b{font-family:Cinzel,serif;font-size:13px;color:var(--wood-dark)}
+body.tutorial #rewinds{display:none}
+#btn-pause{position:fixed;top:14px;right:18px;z-index:2;pointer-events:auto;width:44px;height:44px;border-radius:50%;border:2px solid var(--wood);background:var(--panel);color:var(--wood-dark);font-size:15px;cursor:pointer;box-shadow:0 2px 0 var(--wood-dark)}
+#btn-pause:hover{background:#FFF8EA}
+body.playing #btn-pause{cursor:pointer}
+
+/* 튜토리얼: 점수·라이프·되돌리기·일시정지를 쓰지 않으므로 화면에서도 숨긴다(09-29). 연주 중에도 카드 위에서는 마우스 커서를 보인다 */
+body.tutorial .hud-score,body.tutorial #hud-acc,body.tutorial #life-cells,body.tutorial #btn-pause,body.tutorial .g-rewind,body.tutorial .g-pause,body.tutorial #border-chips{display:none}
+body.playing #tut-card{cursor:auto}
+#guide{right:18px;bottom:14px;display:flex;flex-direction:column;align-items:flex-end;gap:7px;font-size:13px;color:var(--ink-2)}
+.cap{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:24px;padding:0 6px;border:1.5px solid var(--wood);border-radius:5px;background:var(--panel);font-family:Cinzel,serif;font-size:12px;font-weight:700;color:var(--wood-dark);box-shadow:0 2px 0 var(--wood)}
+.cap.on{background:var(--brass-hi);transform:translateY(2px);box-shadow:none}
+.cap.mouse{padding:0 5px}
+.cap.mouse svg{width:12px;height:16px;fill:none;stroke:var(--wood-dark);stroke-width:1.3}
+.cap.mouse svg .btn-on{fill:var(--wood-dark);stroke:none}
+.cap.mouse-move{padding:0 3px}
+.cap.mouse-move svg{width:22px;height:22px;fill:none;stroke:var(--wood-dark);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.cap.pause-icon{width:26px;height:26px;min-width:26px;padding:0;border-radius:50%;font-size:10px}
+
+/* 화면(패널) */
+.screen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(243,236,223,.78);backdrop-filter:blur(2px);z-index:10;padding:16px}
+.screen.show{display:flex}
+.panel{width:min(620px,100%);max-height:calc(100vh - 32px);overflow:auto;background:var(--panel);border:2px solid var(--wood);border-radius:14px;box-shadow:0 0 0 5px #E6D6B6,0 0 0 7px var(--wood),0 18px 40px rgba(63,38,22,.25);padding:26px 30px}
+.panel h1,.panel h2{font-family:Cinzel,"Gowun Batang",serif;margin:0 0 4px;color:var(--wood-dark)}
+.panel h1{font-size:30px;letter-spacing:.08em}
+.panel h2{font-size:22px}
+.sub{color:var(--mute);margin:0 0 16px;font-size:14px}
+.panel p{margin:0 0 12px;line-height:1.7;font-size:15px}
+/* 첫 화면 조작 안내: 왼쪽 키, 오른쪽 할 일 */
+.howto{display:grid;grid-template-columns:auto 1fr;gap:10px 16px;align-items:center;font-size:14.5px;line-height:1.5;margin:4px 0 12px;padding:14px 16px;background:#F0E6D2;border-radius:8px;border:1px solid var(--line)}
+.howto .keys{display:flex;gap:5px;justify-content:flex-end;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--mute)}
+.howto .keys .cap{font-family:"Gowun Batang",Cinzel,serif}
+.howto .what{color:var(--ink-2);word-break:keep-all}
+.howto .what b{color:var(--wood-dark)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{font-family:inherit;font-size:15px;padding:10px 18px;border-radius:9px;border:2px solid var(--wood);background:#FBF6EC;color:var(--wood-dark);cursor:pointer;box-shadow:0 3px 0 var(--wood)}
+.btn:hover{background:#FFFDF6}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--wood)}
+.btn.primary{background:linear-gradient(#E8C271,#C99A40);border-color:var(--wood-dark);box-shadow:0 3px 0 var(--wood-dark);font-weight:700}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.small{padding:5px 10px;font-size:13px}
+/* 시작 화면: 가운데 메뉴 창 + 오른쪽 조작법 안내창(메뉴 창 위치는 그대로) */
+.title-wrap{position:relative;width:min(540px,100%)}
+.title-main{width:100%}
+.title-main h1{font-size:21px;letter-spacing:.02em;line-height:1.35;margin-bottom:18px;white-space:nowrap}
+.title-main .title-mode{color:var(--brass)}
+.title-menu{display:flex;flex-direction:column;gap:10px}
+.menu-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px} /* UI 조정 · 설정: 한 줄에 반씩 */
+.menu-bar[hidden]{display:none}
+.menu-bar{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:52px;font-family:inherit;font-size:17px;font-weight:700;letter-spacing:.04em;color:var(--wood-dark);background:#FBF6EC;border:2px solid var(--wood);border-radius:10px;box-shadow:0 3px 0 var(--wood);cursor:pointer}
+.menu-bar:hover{background:#FFFDF6}
+.menu-bar:active{transform:translateY(3px);box-shadow:none}
+.menu-bar.primary{background:linear-gradient(#E8C271,#C99A40);border-color:var(--wood-dark);box-shadow:0 3px 0 var(--wood-dark)}
+.menu-bar .ok-mark{color:var(--great)}
+.menu-bar .lock{font-size:14px}
+.title-main .title-foot{margin:16px 0 0;font-size:12px;color:var(--mute);text-align:center}
+.title-guide{position:absolute;left:calc(100% + 22px);top:50%;transform:translateY(-50%);width:430px;padding:20px 22px}
+.title-guide h2{margin-bottom:10px}
+.title-guide .howto{margin:0}
+@media (max-width:1480px){.screen#screen-title{align-items:flex-start;overflow:auto}.title-wrap{margin:auto}.title-guide{position:static;transform:none;width:100%;margin-top:18px}}
+@media (max-width:600px){.title-main h1{white-space:normal}}
+.ok-mark{color:var(--great);font-weight:700}
+.stack{display:flex;flex-direction:column;gap:10px;align-items:stretch}
+.stack .btn{width:100%}
+
+.row .grow{flex:1}
+
+/* 싱크 */
+.sync-stage{display:flex;align-items:center;gap:22px;margin:6px 0 14px}
+#sync-bob{width:74px;height:74px;border-radius:50%;border:3px solid var(--wood);background:radial-gradient(circle at 40% 35%,#F2CF6E,#B8862B);transition:transform .08s ease-out,box-shadow .08s;flex:none}
+#sync-bob.beat{transform:scale(1.14);box-shadow:0 0 0 8px rgba(184,134,43,.25)}
+#sync-bob.lead{background:radial-gradient(circle at 40% 35%,#E9DFC9,#B9A889)}
+#sync-count{font-family:Cinzel,serif;font-size:26px;font-weight:700;color:var(--wood-dark)}
+#sync-hint{font-size:13px;color:var(--mute)}
+#sync-track{position:relative;height:38px;border:1px solid var(--line);border-radius:8px;background:#F0E6D2;margin:4px 0 12px}
+#sync-track .mid{position:absolute;left:50%;top:4px;bottom:4px;width:2px;background:var(--wood)}
+#sync-track .tick{position:absolute;top:50%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:var(--brass);border:1px solid var(--wood-dark)}
+#sync-track .edge{position:absolute;bottom:2px;font-size:10px;color:var(--mute)}
+.offset-row{display:flex;align-items:center;gap:6px;margin:10px 0 16px;flex-wrap:wrap}
+.offset-row .val{font-family:Cinzel,serif;font-weight:700;font-size:20px;min-width:4.2em;text-align:center;color:var(--wood-dark)}
+
+/* 설정 */
+.set{display:grid;grid-template-columns:9.5em 1fr;gap:10px 14px;align-items:center;margin:8px 0 18px}
+.set .k{font-size:14px;color:var(--ink-2)}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{font-family:inherit;font-size:13px;padding:6px 11px;border-radius:7px;border:1.5px solid var(--line);background:#FBF6EC;color:var(--ink-2);cursor:pointer}
+.seg button.on{border-color:var(--wood);background:var(--brass-hi);color:var(--wood-dark);font-weight:700}
+input[type=range]{width:100%;accent-color:var(--brass)}
+
+/* 결과 */
+.panel .result-title{font-family:Cinzel,serif;font-size:40px;line-height:1.2;letter-spacing:.12em;margin:0;color:var(--wood-dark)}
+.panel .result-title.over{color:var(--miss)}
+.result-score{font-family:Cinzel,serif;font-size:44px;font-weight:700;color:var(--wood-dark);margin:6px 0 12px}
+.result-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}
+.result-grid div{background:#F0E6D2;border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center;font-size:12px;color:var(--mute)}
+.result-grid b{display:block;font-family:Cinzel,serif;font-size:22px}
+.r-pp b{color:var(--perfect-plus);text-shadow:0 0 6px rgba(246,215,127,.95)} .r-p b{color:var(--perfect)} .r-g b{color:var(--great)} .r-gd b{color:var(--good)} .r-m b{color:var(--miss)}
+#result-extra{font-size:14px;color:var(--ink-2);margin-bottom:18px;line-height:1.7}
+
+/* 카운트다운·알림 */
+#countdown{position:fixed;inset:0;display:none;align-items:center;justify-content:center;pointer-events:none;z-index:9}
+#countdown.show{display:flex}
+#countdown span{font-family:Cinzel,serif;font-weight:700;font-size:130px;color:var(--wood-dark);text-shadow:0 3px 0 #E2B85A,0 0 30px rgba(243,236,223,.9);animation:pop .7s ease-out}
+@keyframes pop{0%{transform:scale(1.5);opacity:0}25%{opacity:1}100%{transform:scale(.9);opacity:.85}}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:var(--panel);border:2px solid var(--wood);border-radius:10px;padding:8px 16px;font-size:14px;color:var(--wood-dark);box-shadow:0 3px 0 var(--wood);opacity:0;transition:opacity .2s;pointer-events:none;z-index:11}
+#toast.show{opacity:1}
+@media (max-width:760px){.set{grid-template-columns:1fr}}
+/* 곡 선택 옆 플레이 설정: 설정 창만 화면 오른쪽에서 밀려 들어온다(곡 선택 창은 움직이지 않는다) */
+.ss-settings{position:fixed;right:16px;top:50%;width:380px;padding:0;opacity:0;visibility:hidden;transform:translate(calc(100% + 32px),-50%);transition:transform .34s cubic-bezier(.2,.8,.2,1),opacity .25s ease,visibility 0s .34s;z-index:2}
+.ss-settings.open{opacity:1;visibility:visible;transform:translate(0,-50%);transition:transform .34s cubic-bezier(.2,.8,.2,1),opacity .25s ease}
+.ss-set-inner{padding:20px 22px}
+.ss-set-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.ss-set-head h2{margin:0}
+.ss-set-head .grow{flex:1}
+.ss-settings .set{grid-template-columns:1fr;gap:3px 0;margin:0}
+.ss-settings .set .k{margin-top:9px;font-size:13px}
+.ss-settings .set input[type=range]{width:100%}
+.ss-actions .btn.on{background:var(--brass-hi);transform:translateY(2px);box-shadow:none}
+.set .k.k-row{display:flex;align-items:center;gap:8px}
+.set .k .k-note{display:block;font-size:11.5px;color:var(--mute);margin-top:1px}
+.set .k.k-row .grow{flex:1}
+.set .locked-note{font-size:12.5px;color:var(--mute);display:flex;align-items:center;gap:8px;margin-top:14px;padding-top:10px;border-top:1px dashed var(--line)}
+.set .locked-note .grow{flex:1}
+.set .locked-note{grid-column:1/-1;word-break:keep-all}
+.set .locked-note .btn{white-space:nowrap}
+.seg button:disabled{opacity:.45;cursor:not-allowed}
+</style>
+</head>
+<body>
+<canvas id="stage-bg" aria-hidden="true"></canvas>
+<canvas id="stage"></canvas>
+<div id="danger" aria-hidden="true"></div>
+<div id="combo-burst" aria-hidden="true"></div>
+
+<!-- 곡 제목 · 난이도: 왼쪽 위 고정(UI 조정 대상 아님) -->
+<div id="hud-title"><div id="song-title"></div><div class="title-sub"><span id="song-diff"></span><span id="rewinds">되돌리기 <b>∞</b></span></div></div>
+<!-- 아래 상자들은 UI 조정에서 자리 · 크기를 바꾼다 -->
+<div id="hud-left" class="hud-box hud-score">
+  <div class="label">SCORE</div>
+  <div id="score">0000000</div>
+  <div id="penalty"></div>
+</div>
+<div id="hud-judge" class="hud-box hud-score"><div id="counts"></div></div>
+<div id="hud-acc" class="hud-box hud-score"><span class="label">ACCURACY</span><span id="acc">100.00%</span></div>
+<div id="hud-life" class="hud-box hud-score">
+  <div class="life"><span class="label">LIFE</span><span id="life-num">100</span></div>
+  <div id="life-cells"></div>
+</div>
+<!-- 일시정지 버튼: 고정(시계 자리에 따라 오른쪽 위 또는 왼쪽 위) -->
+<button id="btn-pause" title="일시정지 (Esc)" aria-label="일시정지">❚❚</button>
+
+<!-- 보더와 콤보는 UI 조정에서 따로 옮길 수 있게 상자를 나눈다 -->
+<div id="hud-border" class="hud-box">
+  <div id="border-chips"><span class="chip ap" id="chip-combo">ALL PERFECT</span><span class="chip nr" id="chip-nr">NO REWIND</span></div>
+</div>
+<div id="hud-combo" class="hud-box">
+  <div class="label">COMBO</div>
+  <div id="combo" class="zero">0</div>
+</div>
+
+<div id="tut-card" aria-live="polite"></div>
+
+<div id="guide" class="hud-box">
+  <span><span class="cap" data-cap="Z">Z</span> <span class="cap" data-cap="X">X</span> 또는 <span class="cap mouse" data-cap="M1" title="좌클릭" aria-label="좌클릭"><svg viewBox="0 0 12 16" aria-hidden="true"><path class="btn-on" d="M6 1.2A4.8 4.8 0 0 0 1.2 6V7H6Z"/><rect x="1.2" y="1.2" width="9.6" height="13.6" rx="4.8"/><path d="M1.2 7H10.8M6 1.2V7"/></svg></span> <span class="cap mouse" data-cap="M2" title="우클릭" aria-label="우클릭"><svg viewBox="0 0 12 16" aria-hidden="true"><path class="btn-on" d="M6 1.2A4.8 4.8 0 0 1 10.8 6V7H6Z"/><rect x="1.2" y="1.2" width="9.6" height="13.6" rx="4.8"/><path d="M1.2 7H10.8M6 1.2V7"/></svg></span> 입력</span>
+  <span class="g-rewind"><span class="cap" data-cap="Space">Space</span> 되돌리기</span>
+  <span class="g-pause"><span class="cap">Esc</span> 일시정지</span>
+</div>
+
+<!-- UI 조정: 멈춘 게임 화면 위에 뜨는 편집 창(머리를 잡고 끌어 옮긴다) -->
+<aside class="panel layout-panel" id="layout-panel" hidden aria-label="UI 조정">
+  <div class="lp-head" id="layout-drag"><h2>UI 조정</h2><span class="grow"></span><button class="btn small" id="btn-layout-reset" title="위치만 되돌립니다(표시 유형 · 크기는 그대로)">기본값</button><button class="btn small primary" id="btn-layout-done">완료</button></div>
+  <p class="lp-tip">화면의 상자를 직접 끌어도 됩니다. 노트가 나오는 시계는 늘 맨 위에 그려지므로, 시계에 가려지는 상자는 빨갛게 표시됩니다(편집 중에만 시계가 반투명).</p>
+  <div id="layout-body"></div>
+</aside>
+
+<section class="screen" id="screen-title">
+  <!-- 가운데 메뉴 창은 제자리, 조작법은 오른쪽에 따로 붙는 안내창(화면이 좁으면 아래로) -->
+  <div class="title-wrap">
+    <div class="panel title-main">
+      <h1>프로젝트 TD 리듬게임 파트 목업 <span class="title-mode">(에임형)</span></h1>
+      <nav class="title-menu" aria-label="메뉴">
+        <button class="menu-bar primary" id="btn-play">게임 시작</button>
+        <button class="menu-bar" id="btn-tutorial">튜토리얼</button>
+        <button class="menu-bar" id="btn-go-sync">싱크 조정</button>
+        <div class="menu-pair"><button class="menu-bar" id="btn-layout">UI 조정</button><button class="menu-bar" id="btn-title-settings">설정</button></div>
+        <button class="menu-bar" id="btn-editor" title="관리자 이상 전용">에디터 <span class="lock">🔒</span></button>
+        <button class="menu-bar" id="btn-admin" hidden title="이 유형의 공식 채보 · 받은 채보 요청(소유자)">관리자</button>
+      </nav>
+      <div class="title-account" id="title-account" hidden></div>
+      <p class="title-foot" id="title-foot" hidden>Mockups/start.bat으로 실행하세요</p><!-- 파일을 더블클릭해 열었을 때만 보인다(game.js boot) -->
+    </div>
+    <aside class="panel title-guide" aria-label="조작법">
+      <h2>조작법</h2>
+      <div class="howto" aria-label="조작 방법">
+        <span class="keys"><span class="cap mouse-move" title="마우스 이동" aria-label="마우스 이동"><svg viewBox="0 0 30 30" aria-hidden="true"><rect x="11" y="8" width="8" height="14" rx="4"/><path d="M11 13H19M15 8V13"/><path d="M3 15H8M3 15l2.5-2.5M3 15l2.5 2.5M27 15H22M27 15l-2.5-2.5M27 15l-2.5 2.5M15 2V5M15 2l-2.5 2.5M15 2l2.5 2.5M15 28V25M15 28l-2.5-2.5M15 28l2.5-2.5"/></svg></span></span>
+        <span class="what"><b>커서 이동</b></span>
+        <span class="keys"><span class="cap">Z</span><span class="cap">X</span>또는<span class="cap mouse" title="좌클릭" aria-label="좌클릭"><svg viewBox="0 0 12 16" aria-hidden="true"><path class="btn-on" d="M6 1.2A4.8 4.8 0 0 0 1.2 6V7H6Z"/><rect x="1.2" y="1.2" width="9.6" height="13.6" rx="4.8"/><path d="M1.2 7H10.8M6 1.2V7"/></svg></span><span class="cap mouse" title="우클릭" aria-label="우클릭"><svg viewBox="0 0 12 16" aria-hidden="true"><path class="btn-on" d="M6 1.2A4.8 4.8 0 0 1 10.8 6V7H6Z"/><rect x="1.2" y="1.2" width="9.6" height="13.6" rx="4.8"/><path d="M1.2 7H10.8M6 1.2V7"/></svg></span></span>
+        <span class="what"><b>입력</b></span>
+        <span class="keys"><span class="cap">Space</span></span>
+        <span class="what"><b>되감기</b>: 점수가 감소하는 대신 몇 초 전으로 게임 진행을 되돌림</span>
+        <span class="keys"><span class="cap">Esc</span>또는<span class="cap pause-icon" title="일시정지 버튼" aria-label="일시정지 버튼">❚❚</span>클릭</span>
+        <span class="what"><b>일시정지</b></span>
+        <span class="keys"><span class="cap">F11</span></span>
+        <span class="what"><b>전체 화면</b></span>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<section class="screen" id="screen-select">
+  <aside class="panel ss-ranking" id="select-ranking" aria-label="랭킹"></aside>
+  <div class="panel ss-panel" id="select-body"></div>
+  <!-- 화면 오른쪽에서 밀려 들어오는 플레이 설정(곡 선택 머리줄의 「설정」) -->
+  <aside class="panel ss-settings" id="select-settings" aria-hidden="true">
+    <div class="ss-set-inner">
+      <div class="ss-set-head"><h2>플레이 설정</h2><span class="grow"></span><button class="btn small" id="btn-select-settings-close">닫기</button></div>
+      <div class="set" id="select-settings-body"></div>
+    </div>
+  </aside>
+</section>
+
+<section class="screen" id="screen-test">
+  <div class="panel">
+    <h2>테스트 플레이</h2>
+    <p id="test-title"></p>
+    <p class="sub" id="test-sub"></p>
+    <div class="row"><button class="btn primary" id="btn-test-start">시작</button></div>
+  </div>
+</section>
+
+<section class="screen" id="screen-sync">
+  <div class="panel">
+    <h2>싱크 맞추기</h2>
+    <p>딸깍 소리에 맞춰 Z·X 또는 마우스 버튼을 누르세요. 처음 4번은 듣기만 하고, 이후 16번을 잽니다. 이 값은 튜토리얼과 모든 곡에 쓰입니다.</p>
+    <div class="sync-stage">
+      <div id="sync-bob" class="lead"></div>
+      <div><div id="sync-count">준비</div><div id="sync-hint">측정 시작을 누르면 소리가 납니다</div></div>
+    </div>
+    <div id="sync-track"><div class="mid"></div><span class="edge" style="left:6px">−150ms 빠름</span><span class="edge" style="right:6px">늦음 +150ms</span></div>
+    <div>측정 평균(중앙값) <b id="sync-avg">–</b></div>
+    <div class="offset-row">
+      <span>적용 오프셋</span>
+      <button class="btn small" data-off="-10">−10</button><button class="btn small" data-off="-1">−1</button>
+      <span class="val" id="offset-val">0ms</span>
+      <button class="btn small" data-off="1">+1</button><button class="btn small" data-off="10">+10</button>
+    </div>
+    <div class="row">
+      <button class="btn" id="btn-sync-measure">측정 시작</button>
+      <button class="btn" id="btn-sync-apply" disabled>측정값 적용</button>
+      <button class="btn primary" id="btn-sync-back">완료</button>
+    </div>
+  </div>
+</section>
+
+<section class="screen" id="screen-pause">
+  <div class="panel">
+    <h2>일시정지</h2>
+    <p class="sub">Esc를 다시 누르면 계속합니다.</p>
+    <div class="stack">
+      <button class="btn primary" id="btn-resume">계속하기</button>
+      <button class="btn" id="btn-restart">처음부터</button>
+      <button class="btn" id="btn-pause-settings">설정</button>
+      <button class="btn" id="btn-stop">그만두기 (곡 선택으로)</button>
+    </div>
+  </div>
+</section>
+
+<section class="screen" id="screen-settings">
+  <div class="panel">
+    <h2>설정</h2>
+    <div class="set" id="settings-body"></div>
+    <div class="row"><button class="btn primary" id="btn-settings-close">닫기</button></div>
+  </div>
+</section>
+
+<section class="screen" id="screen-result">
+  <div class="panel">
+    <p class="result-title" id="result-title">CLEAR</p>
+    <div class="sub" id="result-song"></div>
+    <div class="result-score" id="result-score">0</div>
+    <div class="res-badges" id="result-badges"></div>
+    <div class="res-best" id="result-best"></div>
+    <div class="result-grid">
+      <div class="r-pp">PERFECT+<b id="r-pp">0</b></div>
+      <div class="r-p">PERFECT<b id="r-p">0</b></div>
+      <div class="r-g">GREAT<b id="r-g">0</b></div>
+      <div class="r-gd">GOOD<b id="r-gd">0</b></div>
+      <div class="r-m">MISS<b id="r-m">0</b></div>
+    </div>
+    <div id="result-extra"></div>
+    <div class="res-unlock" id="result-unlock" hidden></div>
+    <div class="row">
+      <button class="btn primary" id="btn-again">다시하기</button>
+      <button class="btn" id="btn-result-select">곡 선택</button>
+      <button class="btn" id="btn-result-title">처음 화면</button>
+    </div>
+  </div>
+</section>
+
+<div id="countdown"></div>
+<div id="toast"></div>
+
+<!-- 서버 연결 라이브러리(Supabase, 버전 고정). 로그인 · 가입에 쓴다(shared/account.js) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
+<script src="../shared/version.js"></script>
+<script src="../shared/config.js"></script>
+<script src="../shared/account.js"></script>
+<script src="../shared/chart-format.js"></script>
+<script src="../shared/library.js"></script>
+<script src="../shared/save.js"></script>
+<script src="../shared/ui.js"></script>
+<script src="engine.js"></script>
+<script src="charts/bundle.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

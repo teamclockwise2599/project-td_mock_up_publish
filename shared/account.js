@@ -310,7 +310,43 @@
     });
   }
 
+  // ---------- 음원(서버, 암호화: shared/songcrypt.js, 표 song_keys + 저장소 songs) ----------
+  var SONG_BUCKET = "songs";
+  // 곡 파일 이름(채보의 song 칸) → 풀어 놓은 음원(ArrayBuffer). 승인 이상. 서버에 없으면 code "no-song" 오류.
+  function downloadSong(file) {
+    return attempt(function () {
+      var c = getClient();
+      return c.from("song_keys").select("object_path, key").eq("song_file", file).maybeSingle().then(unwrap).then(function (row) {
+        if (!row) { var e = new Error("서버에 이 곡의 음원이 아직 없습니다(" + file + ")"); e.code = "no-song"; throw e; }
+        return c.storage.from(SONG_BUCKET).download(row.object_path).then(unwrap).then(function (blob) {
+          return blob.arrayBuffer();
+        }).then(function (data) { return root.TDSongCrypt.decrypt(data, row.key); });
+      });
+    });
+  }
+  // 음원 올리기(소유자): 곡마다 새 열쇠로 암호화해 objectPath(영문 곡 id + .bin)로 올리고 열쇠를 남긴다. 이미 있으면 바꾼다.
+  function uploadSong(file, bytes, objectPath) {
+    return attempt(function () {
+      var c = getClient();
+      return root.TDSongCrypt.encrypt(bytes).then(function (enc) {
+        return c.storage.from(SONG_BUCKET).upload(objectPath, enc.data, { upsert: true, contentType: "application/octet-stream" }).then(unwrap).then(function () {
+          return c.from("song_keys").upsert({ song_file: file, object_path: objectPath, key: enc.key, size: bytes.byteLength, uploaded_by: me ? me.id : null, uploaded_at: new Date().toISOString() }, { onConflict: "song_file" })
+            .select("song_file").then(unwrap);
+        });
+      }).then(function (rows) {
+        if (!rows || !rows.length) throw new Error("소유자만 음원을 올릴 수 있습니다.");
+      });
+    });
+  }
+  // 서버에 올라간 음원 목록(승인 이상): [{ song_file, object_path, size, uploaded_at }]
+  function listSongs() {
+    return attempt(function () {
+      return getClient().from("song_keys").select("song_file, object_path, size, uploaded_at").order("song_file").then(unwrap);
+    });
+  }
+
   var api = {
+    downloadSong: downloadSong, uploadSong: uploadSong, listSongs: listSongs,
     NAME_MIN: NAME_MIN, NAME_MAX: NAME_MAX, PASSWORD_MIN: PASSWORD_MIN, ROLE_LABEL: ROLE_LABEL, remembered: remembered,
     checkEmail: checkEmail, checkName: checkName, checkPassword: checkPassword, errorText: errorText,
     canPlay: function (acc) { return !!acc && PLAYABLE.indexOf(acc.role) >= 0 && !isBanned(acc); },

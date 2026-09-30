@@ -2018,8 +2018,38 @@
     $("dirty").classList.toggle("on", dirty);
     document.title = (dirty ? "● " : "") + (chart ? chart.title + " · " : "") + "채보 에디터";
   }
+  // 위쪽 막대 채보 바꾸기: 이 목업의 채보 목록(곡별 묶음). 고르면 저장 안 한 변경을 확인한 뒤 연다(09-30, 사용자).
+  var switchSig = "";
+  function refreshSwitch() {
+    var sel = $("chart-switch");
+    var list = (lib && lib.charts ? lib.charts : []).slice().sort(function (a, b) {
+      return a.title.localeCompare(b.title) || TDChart.difficultyIndex(a.difficulty) - TDChart.difficultyIndex(b.difficulty) || a.level - b.level;
+    });
+    var sig = list.map(function (c) { return c.id + "|" + c.title + "|" + c.difficulty + "|" + c.level; }).join(",") + "#" + (chart ? chart.id : "");
+    sel.hidden = !list.length;
+    if (sig === switchSig) return;
+    switchSig = sig;
+    var html = chart && !list.some(function (c) { return c.id === chart.id; }) ? '<option value="">(저장 전 채보)</option>' : ""; // 새로 만들어 아직 목록에 없는 채보
+    var song = null;
+    list.forEach(function (c) {
+      if (c.songId !== song) { if (song !== null) html += "</optgroup>"; song = c.songId; html += '<optgroup label="' + esc(c.title) + '">'; }
+      html += '<option value="' + esc(c.id) + '">' + esc(c.title + " · " + TDChart.difficultyLabel(c.difficulty) + " " + TDChart.levelText(c.level)) + "</option>";
+    });
+    if (song !== null) html += "</optgroup>";
+    sel.innerHTML = html;
+    sel.value = chart ? chart.id : "";
+  }
+  $("chart-switch").addEventListener("change", function () {
+    var sel = this;
+    var c = findChart(sel.value);
+    sel.blur(); // 단축키가 목록 상자로 가지 않게
+    if (!c || (chart && c.id === chart.id)) { sel.value = chart ? chart.id : ""; return; }
+    sel.value = chart ? chart.id : ""; // 확인 전에는 지금 채보를 보인다(취소하면 그대로)
+    guardDirty(function () { openChart(c); });
+  });
   function refreshTitle() {
     $("mode-chip").textContent = MODE_LABEL;
+    refreshSwitch();
     if (!chart) {
       $("chart-title").textContent = "채보 없음";
       $("chart-sub").textContent = "";
@@ -2070,8 +2100,10 @@
   }
   function upsertLib(c) {
     var copy = JSON.parse(JSON.stringify(c));
-    for (var i = 0; i < lib.charts.length; i++) if (lib.charts[i].id === c.id) { lib.charts[i] = copy; return; }
-    lib.charts.push(copy);
+    var i = 0;
+    while (i < lib.charts.length && lib.charts[i].id !== c.id) i++;
+    lib.charts[i] = copy; // 없으면 끝에 더한다
+    refreshSwitch();
   }
   function openChart(c) {
     if (audio.running) stopPlayback();
@@ -2261,6 +2293,7 @@
       LIB.deleteChart(MODE, c.id).then(function () {
         dropBackup(c.id);
         lib.charts = lib.charts.filter(function (x) { return x.id !== c.id; });
+        refreshSwitch();
         if (audio.running) stopPlayback();
         chart = null;
         savedJson = "";
@@ -2386,7 +2419,7 @@
   $("btn-rec").addEventListener("click", function () { setRec(!rec.on); });
 
   // ---- 권한 ----
-  // 에디터는 관리자 이상 계정만 연다. 로그인은 메인 화면(Mockups/index.html)에서 하고, 같은 브라우저면 이어진다(shared/account.js).
+  // 에디터는 관리자 이상 계정만 연다. 로그인은 메인 화면(index.html)에서 하고, 같은 브라우저면 이어진다(shared/account.js).
   // 확인하는 동안과 막혔을 때는 권한 창을 띄워 두고 멈춘다. 스크린샷 도우미(shot&unlock=1)는 확인 없이 연다.
   function gate() {
     if (SHOT && params.get("unlock") === "1") return Promise.resolve();
@@ -2410,6 +2443,7 @@
   var officialRows = {}; // 채보 id → 서버의 지금 버전 공식 채보 { id, version, published_at }
   function loadOfficial() {
     if (!account) return;
+    loadServerSongs();
     TDAccount.loadOfficialCharts(MODE).then(function (rows) {
       officialRows = {};
       (rows || []).forEach(function (r) { officialRows[r.chart_id] = r; });
@@ -2418,6 +2452,7 @@
   }
   function refreshOfficial() {
     refreshDeploy();
+    refreshSongServer();
     var chip = $("official-chip");
     var btn = $("btn-publish");
     var owner = TDAccount.isOwner(account);
@@ -2455,6 +2490,57 @@
     refreshDeploy();
     this.blur(); // 단축키(Space 등)가 체크 칸으로 가지 않게
     status(chart.deploy ? "배포에 포함했습니다 · 저장하면 파일에 남습니다" : "배포에서 뺐습니다 · 저장하면 파일에 남습니다");
+  });
+  // 서버 음원(소유자): 이 채보의 음원이 서버에 있는지 보이고, 이 기기의 음원을 곡마다 새 열쇠로 암호화해 올린다(09-30).
+  // 저장소 파일 이름은 영문 곡 id(채보 songId) + .bin. 공개 페이지는 이 음원을 받아 재생한다(shared/library.js).
+  var serverSongs = {}; // 곡 파일 이름 → { object_path, size, uploaded_at }
+  var songUploading = false;
+  function loadServerSongs() {
+    if (!account || !TDAccount.isOwner(account)) return;
+    TDAccount.listSongs().then(function (rows) {
+      serverSongs = {};
+      (rows || []).forEach(function (r) { serverSongs[r.song_file] = r; });
+      refreshSongServer();
+    }, function (e) { status("서버 음원 목록을 받지 못했습니다: " + TDAccount.errorText(e), "warn"); });
+  }
+  function songObjectPath(c) { return TDChart.slug(c.songId || c.song) + ".bin"; }
+  function refreshSongServer() {
+    var show = !!(account && TDAccount.isOwner(account) && chart && chart.song);
+    $("song-server-row").hidden = !show;
+    if (!show) return;
+    var r = serverSongs[chart.song];
+    var el = $("song-server");
+    el.className = r ? "" : "none";
+    el.textContent = r ? "서버 음원 있음 · " + new Date(r.uploaded_at).toLocaleDateString("ko-KR") + " · " + (r.size / 1048576).toFixed(1) + "MB"
+      : "서버 음원 없음(공개 페이지에서 재생 안 됨)";
+    el.title = r ? "저장소 " + r.object_path : "";
+    $("btn-song-upload").textContent = songUploading ? "올리는 중…" : r ? "다시 올리기" : "음원 올리기";
+    $("btn-song-upload").disabled = songUploading;
+  }
+  $("btn-song-upload").addEventListener("click", function () {
+    if (!chart || !chart.song || songUploading) return;
+    var file = chart.song;
+    var path = songObjectPath(chart);
+    var cfg = window.TD_CONFIG || {};
+    LIB.loadLocalAudio(file).then(function (bytes) {
+      var again = !!serverSongs[file];
+      return confirmBox((cfg.serverShown ? "[" + cfg.serverName + "] " : "") + file + "(" + (bytes.byteLength / 1048576).toFixed(1) + "MB)을 곡 열쇠로 암호화해 서버에 " +
+        (again ? "다시 올립니다(열쇠도 새로 바뀝니다)" : "올립니다") + ". 저장소 이름 " + path + ". 승인된 플레이어가 공개 페이지에서 받아 재생합니다.", again ? "다시 올리기" : "올리기").then(function (ok) {
+        if (!ok) return;
+        songUploading = true;
+        refreshSongServer();
+        status("음원을 암호화해 올리는 중… " + file);
+        return TDAccount.uploadSong(file, bytes, path).then(function () {
+          status("서버에 음원을 올렸습니다 · " + file + " → " + path, "ok");
+        }, function (e) {
+          status("음원을 올리지 못했습니다: " + TDAccount.errorText(e), "err");
+        }).then(function () {
+          songUploading = false;
+          loadServerSongs();
+          refreshSongServer();
+        });
+      });
+    }, function (e) { status("올릴 음원을 읽지 못했습니다: " + (e && e.message ? e.message : e), "err"); });
   });
   function chartData() {
     var data = JSON.parse(TDChart.stringifyChart(chart));
@@ -2513,8 +2599,13 @@
   $("publish-cancel").addEventListener("click", function () { hideModal("dlg-publish"); });
 
   // ---- 채보 열기 ----
+  function lastChartId() {
+    try { return localStorage.getItem(LAST_KEY); } catch (e) { return null; }
+  }
   function showOpen() {
-    $("open-sub").textContent = MODE_LABEL + " 채보 · Mockups/" + MODE_DIR + "/charts/" + (ONLINE ? "" : " (서버 없이 열려 bundle.js 사본을 읽었습니다)");
+    $("open-sub").textContent = MODE_LABEL + " 채보 · " + MODE_DIR + "/charts/" + (ONLINE ? "" : " (서버 없이 열려 bundle.js 사본을 읽었습니다)");
+    var last = lastChartId();
+    refreshSwitch(); // 채보 목록을 불러온 뒤 처음 여는 경우
     $("open-errors").innerHTML = (lib.errors || []).map(function (er) { return "읽지 못한 파일: " + esc(er.file) + " · " + esc(er.error); }).join("<br>");
     var list = $("open-list");
     list.innerHTML = "";
@@ -2528,6 +2619,10 @@
       groups[c.songId].push(c);
     });
     order.sort(function (a, b) { return groups[a][0].title.localeCompare(groups[b][0].title); });
+    // 마지막으로 연 채보가 든 곡을 맨 위로
+    var lastSong = null;
+    lib.charts.forEach(function (c) { if (c.id === last) lastSong = c.songId; });
+    if (lastSong) order = [lastSong].concat(order.filter(function (x) { return x !== lastSong; }));
     order.forEach(function (sid) {
       var cs = groups[sid].slice().sort(function (a, b) { return TDChart.difficultyIndex(a.difficulty) - TDChart.difficultyIndex(b.difficulty) || a.level - b.level; });
       var box = document.createElement("div");
@@ -2538,8 +2633,9 @@
       box.appendChild(head);
       cs.forEach(function (c) {
         var row = document.createElement("div");
-        row.className = "chart-row" + (chart && chart.id === c.id ? " cur" : "");
-        row.innerHTML = '<span class="d">' + esc(TDChart.difficultyLabel(c.difficulty)) + "</span><span>" + TDChart.levelText(c.level) + "</span><span>노트 " + c.notes.length + '</span><span class="id">' + esc(c.id) + "</span>";
+        row.className = "chart-row" + (chart && chart.id === c.id ? " cur" : "") + (c.id === last ? " last" : "");
+        row.innerHTML = '<span class="d">' + esc(TDChart.difficultyLabel(c.difficulty)) + "</span><span>" + TDChart.levelText(c.level) + "</span><span>노트 " + c.notes.length + '</span><span class="id">' +
+          (c.id === last ? '<b class="last-tag">마지막으로 연 채보</b> ' : "") + esc(c.id) + "</span>";
         row.addEventListener("click", function () {
           if (chart && chart.id === c.id) { hideModal("dlg-open"); return; }
           guardDirty(function () { hideModal("dlg-open"); openChart(c); });
@@ -2584,8 +2680,8 @@
     var items = songs.map(function (s) { return { v: s, label: s + ((lib.songs || []).indexOf(s) < 0 ? " (songs 폴더에 없음)" : "") }; });
     if (!items.length) items = [{ v: "", label: "songs 폴더에 음원이 없습니다", disabled: true }];
     fillSelect($("f-song"), items, editing ? c.song : songs[0] || "");
-    $("f-song-hint").textContent = (lib.songs || []).length ? (ONLINE ? "Mockups/songs/ 폴더의 음원 " : "음원 사본(서버 없이 열림) ") + lib.songs.length + "개" :
-      ONLINE ? "Mockups/songs/ 폴더에 음원(mp3·ogg·wav·m4a)을 넣고 새로고침하세요" : "서버 없이 열려 있어 사본이 있는 음원만 보입니다. start.bat으로 실행하세요";
+    $("f-song-hint").textContent = (lib.songs || []).length ? (ONLINE ? "songs/ 폴더의 음원 " : "음원 사본(서버 없이 열림) ") + lib.songs.length + "개" :
+      ONLINE ? "songs/ 폴더에 음원(mp3·ogg·wav·m4a)을 넣고 새로고침하세요" : "서버 없이 열려 있어 사본이 있는 음원만 보입니다. start.bat으로 실행하세요";
     $("f-song-hint").className = "hint" + ((lib.songs || []).length ? "" : " bad");
     fillSelect($("f-diff"), TDChart.DIFFICULTIES.map(function (d) { return { v: d.key, label: d.label + " (" + d.short + ")" }; }), editing ? c.difficulty : "normal");
     $("f-title").value = editing ? c.title : songTitleOf($("f-song").value);
@@ -2836,10 +2932,10 @@
   }
   function afterLoad(backupLoaded) {
     if (backupLoaded) { applyUrlParams(); return; }
+    // 주소에 채보가 있으면(테스트 플레이에서 돌아옴 등) 그 채보를 바로 연다. 없으면(게임의 「에디터」) 늘 「채보 열기」를 띄우고
+    // 마지막으로 연 채보를 맨 위에 강조한다(09-30, 사용자).
     var want = params.get("chart");
-    var last = null;
-    try { last = localStorage.getItem(LAST_KEY); } catch (e) { /* 무시 */ }
-    var c = findChart(want || last);
+    var c = want ? findChart(want) : null;
     if (c) {
       openChart(c);
       applyUrlParams();

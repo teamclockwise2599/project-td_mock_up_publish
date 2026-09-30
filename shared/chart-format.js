@@ -9,7 +9,7 @@
 //   "id": "enchanted-love_normal",       파일 이름(확장자 뺀 것). 영문 소문자·숫자·-·_ 만
 //   "songId": "enchanted-love",          같은 곡의 난이도끼리 묶는 이름
 //   "title": "enchanted love", "artist": "",
-//   "song": "linear ring - Enchanted love.mp3", Mockups/songs/ 안의 음원 파일 이름
+//   "song": "linear ring - Enchanted love.mp3", songs/ 안의 음원 파일 이름
 //   "bpm": 190, "offset": 0,             offset = 음원에서 0박이 울리는 시각(초)
 //   "degPerBeat": 90,                    만든 사람이 기준으로 삼은 회전 속도(참고용. 게임은 설정값을 쓴다). 없으면 에임형 90 · 건반형 30
 //   "difficulty": "normal", "level": 8,   난이도 easy · normal · hard(쉬움 · 보통 · 어려움). level: 쉬움 1~6 · 보통 4~9 · 어려움 7~13, 화면에는 시계 숫자 I~XII, 13은 OVER

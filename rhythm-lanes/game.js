@@ -2949,7 +2949,7 @@
   }
 
   function boot() {
-    // 계정을 확인하고(안내문 · 로그인은 메인 화면 Mockups/index.html에서 한다. 로그인해 있지 않으면 그리로 보낸다) 처음 화면을 연다.
+    // 계정을 확인하고(안내문 · 로그인은 메인 화면 index.html에서 한다. 로그인해 있지 않으면 그리로 보낸다) 처음 화면을 연다.
     // 채보는 그동안 함께 불러 둔다. 미리보기 · 자동 점검 · 에디터의 테스트 플레이는 계정 확인 없이 연다.
     var skipAccount = PREVIEW !== null || params.has("test") || params.has("selftest");
     $("title-foot").hidden = location.protocol !== "file:"; // start.bat 안내는 파일을 더블클릭해 열었을 때만

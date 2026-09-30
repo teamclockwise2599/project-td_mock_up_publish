@@ -316,7 +316,7 @@
     };
   }
 
-  // ---------- 계정: 안내문 → 로그인 · 가입 요청 → 승인 대기 (메인 화면 Mockups/index.html) ----------
+  // ---------- 계정: 안내문 → 로그인 · 가입 요청 → 승인 대기 (메인 화면 index.html) ----------
   // opts.notice가 참이면 안내문부터 띄운다. 플레이할 수 있는 계정(승인 · 관리자 · 소유자)으로 로그인하면 약속을 푼다(값: 내 계정).
   // 화면은 body에 붙인 창 하나(#screen-account)에 차례로 그리고, 끝나면 뗀다. 서버 일은 shared/account.js(TDAccount).
   function accountGate(opts) {

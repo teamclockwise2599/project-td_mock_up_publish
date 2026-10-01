@@ -1,6 +1,13 @@
 /* 두 목업이 같이 쓰는 화면 조각: 계정 창, 곡 선택, 보더·등급 배지, 결과 기록.
    색·버튼·패널(.screen .panel .btn)은 각 목업 index.html의 것을 그대로 쓴다. 라이트 테마 하나만 둔다. */
 
+/* ---------- 마우스 커서: 화살촉 시침(10-01) ---------- */
+/* 평소 짙은 갈색, 누를 수 있는 곳 위에서는 놋쇠. 가리키는 점은 그림 왼쪽 위 (3, 2). 에디터는 이 파일을 쓰지 않아 기본 커서 그대로 */
+:root{--td-cursor:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2232%22%20height%3D%2232%22%20viewBox%3D%220%200%2032%2032%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%220%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23F1D48A%22%2F%3E%3Cstop%20offset%3D%22.55%22%20stop-color%3D%22%23D6A437%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%239C6E1C%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Cg%20transform%3D%22translate(3%202)%20rotate(-35)%22%3E%3Cpath%20d%3D%22M0%2C0%20L5.2%2C9.2%20L1.5%2C8.6%20L1.5%2C12.4%20C4.4%2C13.8%204.5%2C19.4%201.6%2C21.3%20L1.6%2C25.2%20L-1.6%2C25.2%20L-1.6%2C21.3%20C-4.5%2C19.4%20-4.4%2C13.8%20-1.5%2C12.4%20L-1.5%2C8.6%20L-5.2%2C9.2%20Z%22%20fill%3D%22%232A1A0E%22%20stroke%3D%22%23C99A40%22%20stroke-width%3D%221%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cellipse%20cx%3D%220%22%20cy%3D%2216.6%22%20rx%3D%221.25%22%20ry%3D%222.2%22%20fill%3D%22%23E9DAB8%22%2F%3E%3Ccircle%20cx%3D%220%22%20cy%3D%2228.3%22%20r%3D%223.1%22%20fill%3D%22%232A1A0E%22%20stroke%3D%22%23C99A40%22%20stroke-width%3D%221%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E") 3 2,auto;--td-cursor-hover:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2232%22%20height%3D%2232%22%20viewBox%3D%220%200%2032%2032%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%220%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23F1D48A%22%2F%3E%3Cstop%20offset%3D%22.55%22%20stop-color%3D%22%23D6A437%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%239C6E1C%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Cg%20transform%3D%22translate(3%202)%20rotate(-35)%22%3E%3Cpath%20d%3D%22M0%2C0%20L5.2%2C9.2%20L1.5%2C8.6%20L1.5%2C12.4%20C4.4%2C13.8%204.5%2C19.4%201.6%2C21.3%20L1.6%2C25.2%20L-1.6%2C25.2%20L-1.6%2C21.3%20C-4.5%2C19.4%20-4.4%2C13.8%20-1.5%2C12.4%20L-1.5%2C8.6%20L-5.2%2C9.2%20Z%22%20fill%3D%22url(%23g)%22%20stroke%3D%22%232A1A0E%22%20stroke-width%3D%221%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cellipse%20cx%3D%220%22%20cy%3D%2216.6%22%20rx%3D%221.25%22%20ry%3D%222.2%22%20fill%3D%22%232A1A0E%22%2F%3E%3Ccircle%20cx%3D%220%22%20cy%3D%2228.3%22%20r%3D%223.1%22%20fill%3D%22url(%23g)%22%20stroke%3D%22%232A1A0E%22%20stroke-width%3D%221%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E") 3 2,pointer}
+body{cursor:var(--td-cursor)}
+a[href],select,input[type=checkbox],input[type=radio],input[type=range]{cursor:var(--td-cursor-hover)}
+input:not([type=checkbox]):not([type=radio]):not([type=range]),textarea{cursor:auto} /* 글자 칸은 글자 커서 */
+
 /* ---------- 배지 ---------- */
 .badge{display:inline-flex;align-items:center;justify-content:center;min-width:2.1em;height:22px;padding:0 7px;border-radius:6px;font-family:Cinzel,serif;font-weight:700;font-size:12px;letter-spacing:.04em;border:1.5px solid rgba(42,26,14,.55);white-space:nowrap}
 /* 보더: AP 진한 테마색(갈색 주황) · FC 파랑 · CLEAR 녹색 · FAIL 회색 */
@@ -44,13 +51,13 @@
 .ss-head .ss-count{font-size:13px;color:var(--mute)}
 /* 나눠 보기(전체 · 공식 · 커스텀) */
 .ss-filter{display:inline-flex;border:1.5px solid var(--wood);border-radius:8px;overflow:hidden;box-shadow:0 2px 0 var(--wood)}
-.ss-filter button{font-family:inherit;font-size:13px;padding:4px 11px;border:0;border-left:1.5px solid var(--line);background:#FBF6EC;color:var(--ink-2);cursor:pointer}
+.ss-filter button{font-family:inherit;font-size:13px;padding:4px 11px;border:0;border-left:1.5px solid var(--line);background:#FBF6EC;color:var(--ink-2);cursor:var(--td-cursor-hover)}
 .ss-filter button:first-child{border-left:0}
 .ss-filter button:hover{background:#FFFDF6}
 .ss-filter button.on{background:linear-gradient(#E8C271,#C99A40);color:var(--wood-dark);font-weight:700}
 .ss-body{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:16px;min-height:360px}
 .ss-songs{list-style:none;margin:0;padding:4px;border:1px solid var(--line);border-radius:10px;background:#F0E6D2;overflow:auto;max-height:min(58vh,520px)}
-.ss-song{padding:10px 12px;border-radius:8px;border:2px solid transparent;cursor:pointer;margin-bottom:4px;background:#FBF6EC}
+.ss-song{padding:10px 12px;border-radius:8px;border:2px solid transparent;cursor:var(--td-cursor-hover);margin-bottom:4px;background:#FBF6EC}
 .ss-song:hover{background:#FFFDF6}
 .ss-song.on{border-color:var(--wood);background:#FFF8E6;box-shadow:0 2px 0 var(--wood)}
 .ss-song.locked{opacity:.62}
@@ -61,7 +68,7 @@
 .ss-title{font-family:Cinzel,"Gowun Batang",serif;font-size:26px;font-weight:700;color:var(--wood-dark);line-height:1.2}
 .ss-meta{font-size:13.5px;color:var(--ink-2)}
 .ss-diffs{display:flex;flex-direction:column;gap:6px}
-.ss-diff{display:grid;grid-template-columns:5.2em 3.4em 1fr auto;align-items:center;gap:8px;text-align:left;font-family:inherit;font-size:14px;padding:9px 12px;border-radius:9px;border:2px solid var(--line);background:#FBF6EC;color:var(--ink);cursor:pointer}
+.ss-diff{display:grid;grid-template-columns:5.2em 3.4em 1fr auto;align-items:center;gap:8px;text-align:left;font-family:inherit;font-size:14px;padding:9px 12px;border-radius:9px;border:2px solid var(--line);background:#FBF6EC;color:var(--ink);cursor:var(--td-cursor-hover)}
 .ss-diff:hover{background:#FFFDF6}
 .ss-diff.on{border-color:var(--wood);background:#FFF3D6;box-shadow:0 2px 0 var(--wood)}
 .ss-diff.locked{color:var(--mute);background:#EFE8DA}
@@ -105,14 +112,14 @@
 .acc-actions{justify-content:center}
 .panel .acc-copy{margin:14px 0 0;text-align:center;font-size:12px;color:var(--mute)}
 .acc-tabs{display:flex;gap:6px;margin-bottom:14px}
-.acc-tabs button{flex:1;font:inherit;font-size:15px;padding:8px;border-radius:8px;border:2px solid var(--line);background:#FBF6EC;color:var(--ink-2);cursor:pointer}
+.acc-tabs button{flex:1;font:inherit;font-size:15px;padding:8px;border-radius:8px;border:2px solid var(--line);background:#FBF6EC;color:var(--ink-2);cursor:var(--td-cursor-hover)}
 .acc-tabs button.on{border-color:var(--wood);background:var(--brass-hi);color:var(--wood-dark);font-weight:700}
 .acc-form label{display:block;font-size:13.5px;color:var(--ink-2)}
 .acc-form input{width:100%;font:inherit;font-size:16px;padding:9px 12px;border-radius:8px;border:2px solid var(--line);background:#FFFDF6;color:var(--ink);margin:4px 0 10px}
 .acc-form input:focus{outline:none;border-color:var(--wood)}
 .acc-form > .btn{width:100%}
 .acc-note{font-size:12px;color:var(--mute)}
-.acc-form label.acc-check{display:flex;align-items:center;gap:7px;margin:-2px 0 8px;cursor:pointer}
+.acc-form label.acc-check{display:flex;align-items:center;gap:7px;margin:-2px 0 8px;cursor:var(--td-cursor-hover)}
 .acc-check input{width:auto;margin:0;padding:0;accent-color:var(--brass)}
 .panel .acc-hint{margin:12px 0 0;font-size:12.5px;color:var(--mute);line-height:1.6}
 .gate-msg.ok{color:var(--great)}
@@ -167,7 +174,7 @@
 .pn-head{font-size:12.5px;color:var(--ink-2);margin-top:4px}
 .pn ul{margin:2px 0 4px;padding-left:1.2em}
 .pn details{margin-top:6px}
-.pn summary{cursor:pointer;font-size:12.5px;color:var(--mute)}
+.pn summary{cursor:var(--td-cursor-hover);font-size:12.5px;color:var(--mute)}
 .ver-banner{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:10px;max-width:calc(100vw - 32px);padding:9px 12px 9px 16px;background:var(--panel);border:2px solid var(--wood);border-radius:10px;box-shadow:0 3px 0 var(--wood),0 10px 24px rgba(63,38,22,.2);font-size:14px;color:var(--ink)}
 .ver-banner b{color:var(--wood-dark)}
 
@@ -203,10 +210,10 @@ body.tutorial #hud-right #rewinds{visibility:hidden}
 #tut-card .tc-dots i.cur{background:var(--brass)}
 /* 튜토리얼을 마친 뒤의 단계 버튼 줄(10-01): 누르면 그 단계로 */
 #tut-card .tc-tabs{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 10px}
-#tut-card .tc-tabs button{font:inherit;font-size:12.5px;padding:3px 9px;border-radius:10px;border:1px solid var(--line);background:#F0E6D2;color:var(--wood-dark);cursor:pointer}
+#tut-card .tc-tabs button{font:inherit;font-size:12.5px;padding:3px 9px;border-radius:10px;border:1px solid var(--line);background:#F0E6D2;color:var(--wood-dark);cursor:var(--td-cursor-hover)}
 #tut-card .tc-tabs button.done{border-color:var(--great)}
 #tut-card .tc-tabs button.cur{background:var(--brass-hi);border-color:var(--wood);font-weight:700}
-#tut-card .tc-tabs button:disabled{opacity:.5;cursor:default}
+#tut-card .tc-tabs button:disabled{opacity:.5;cursor:var(--td-cursor)}
 #tut-card .tc-status{min-height:22px;font-size:14px;color:var(--ink-2);margin-bottom:10px;line-height:1.6}
 #tut-card .tc-status .pass{color:var(--great);font-weight:700}
 #tut-card .tc-status .fail{color:var(--miss);font-weight:700}
@@ -225,17 +232,16 @@ body.tutorial #hud-right #rewinds{visibility:hidden}
 .set .range-row{display:flex;align-items:center;gap:10px}
 .set .range-row input[type=range]{flex:1;min-width:0}
 .set .range-row .range-val{font-size:13px;color:var(--wood-dark);white-space:nowrap;min-width:9.5em}
-#tut-card .tc-quit button{font:inherit;border:0;background:none;color:var(--mute);text-decoration:underline;cursor:pointer;padding:0}
+#tut-card .tc-quit button{font:inherit;border:0;background:none;color:var(--mute);text-decoration:underline;cursor:var(--td-cursor-hover);padding:0}
 
 /* 난이도 칸 나란히(diffSlots): 칸마다 난이도·레벨·상태·최고 점수·등급·보더·노트 */
 .ss-dcols{display:grid;gap:10px}
-.ss-dcard{display:flex;flex-direction:column;align-items:stretch;gap:6px;text-align:left;font-family:inherit;padding:12px 13px;border-radius:10px;border:2px solid var(--line);background:#FBF6EC;color:var(--ink);cursor:pointer;min-width:0}
+.ss-dcard{display:flex;flex-direction:column;align-items:stretch;gap:6px;text-align:left;font-family:inherit;padding:12px 13px;border-radius:10px;border:2px solid var(--line);background:#FBF6EC;color:var(--ink);cursor:var(--td-cursor-hover);min-width:0}
 .ss-dcard:hover{background:#FFFDF6}
 .ss-dcard.on{border-color:var(--wood);background:#FFF3D6;box-shadow:0 3px 0 var(--wood)}
 .ss-dcard.locked{color:var(--mute);background:#EFE8DA}
-.ss-dcard.empty{cursor:default;background:#F1EBDF;border-style:dashed;color:var(--mute)}
+.ss-dcard.empty{cursor:var(--td-cursor);background:#F1EBDF;border-style:dashed;color:var(--mute)}
 .ss-dcard .dc-head{display:flex;align-items:center;gap:6px}
-.ss-dcard .dc-head .badge{height:19px;font-size:10.5px;padding:0 5px}
 .ss-dcard .dc-name{font-weight:700;font-size:16px;color:var(--wood-dark)}
 .ss-dcard.locked .dc-name,.ss-dcard.empty .dc-name{color:var(--mute)}
 .ss-dcard .dc-lv{font-family:Cinzel,serif;font-size:13px;color:var(--ink-2);margin-left:auto}
@@ -244,5 +250,7 @@ body.tutorial #hud-right #rewinds{visibility:hidden}
 .ss-dcard .dc-state .no{color:var(--miss)}
 .ss-dcard .dc-score{font-family:Cinzel,serif;font-weight:700;font-size:22px;color:var(--wood-dark);line-height:1.1}
 .ss-dcard .dc-badges{display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-height:22px;font-size:12px;color:var(--ink-2)}
+.ss-dcard .dc-rewind{display:flex;align-items:center;min-height:19px}
+.ss-dcard .dc-rewind .badge{height:19px;font-size:10.5px;padding:0 5px}
 .ss-dcard .dc-meta{font-size:12px;color:var(--mute)}
 .ss-dcard .dc-none{font-size:13px;margin-top:auto;margin-bottom:auto}

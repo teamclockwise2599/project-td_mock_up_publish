@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet">
-<link href="../shared/ui.css?v=0.1.11" rel="stylesheet">
+<link href="../shared/ui.css?v=0.1.12" rel="stylesheet">
 <style>
 :root{
   --paper:#F3ECDF; --paper-2:#EBDFC8; --panel:#F8F2E6;
@@ -104,13 +104,13 @@ body.danger #danger{animation:dangerPulse 1.8s ease-in-out infinite}
 #rewinds{font-size:12px;color:var(--mute);white-space:nowrap} /* 난이도 옆에 작게 */
 #rewinds b{font-family:Cinzel,serif;font-size:13px;color:var(--wood-dark)}
 body.tutorial #rewinds{display:none}
-#btn-pause{position:fixed;top:14px;right:18px;z-index:2;pointer-events:auto;width:44px;height:44px;border-radius:50%;border:2px solid var(--wood);background:var(--panel);color:var(--wood-dark);font-size:15px;cursor:pointer;box-shadow:0 2px 0 var(--wood-dark)}
+#btn-pause{position:fixed;top:14px;right:18px;z-index:2;pointer-events:auto;width:44px;height:44px;border-radius:50%;border:2px solid var(--wood);background:var(--panel);color:var(--wood-dark);font-size:15px;cursor:var(--td-cursor-hover);box-shadow:0 2px 0 var(--wood-dark)}
 #btn-pause:hover{background:#FFF8EA}
-body.playing #btn-pause{cursor:pointer}
+body.playing #btn-pause{cursor:var(--td-cursor-hover)}
 
 /* 튜토리얼: 점수·라이프·되돌리기·일시정지를 쓰지 않으므로 화면에서도 숨긴다(09-29). 연주 중에도 카드 위에서는 마우스 커서를 보인다 */
 body.tutorial .hud-score,body.tutorial #hud-acc,body.tutorial #life-cells,body.tutorial #btn-pause,body.tutorial .g-rewind,body.tutorial .g-pause,body.tutorial #border-chips{display:none}
-body.playing #tut-card{cursor:auto}
+body.playing #tut-card{cursor:var(--td-cursor)}
 #guide{right:18px;bottom:14px;display:flex;flex-direction:column;align-items:flex-end;gap:7px;font-size:13px;color:var(--ink-2)}
 .cap{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:24px;padding:0 6px;border:1.5px solid var(--wood);border-radius:5px;background:var(--panel);font-family:Cinzel,serif;font-size:12px;font-weight:700;color:var(--wood-dark);box-shadow:0 2px 0 var(--wood)}
 .cap.on{background:var(--brass-hi);transform:translateY(2px);box-shadow:none}
@@ -137,11 +137,11 @@ body.playing #tut-card{cursor:auto}
 .howto .what{color:var(--ink-2);word-break:keep-all}
 .howto .what b{color:var(--wood-dark)}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-.btn{font-family:inherit;font-size:15px;padding:10px 18px;border-radius:9px;border:2px solid var(--wood);background:#FBF6EC;color:var(--wood-dark);cursor:pointer;box-shadow:0 3px 0 var(--wood)}
+.btn{font-family:inherit;font-size:15px;padding:10px 18px;border-radius:9px;border:2px solid var(--wood);background:#FBF6EC;color:var(--wood-dark);cursor:var(--td-cursor-hover);box-shadow:0 3px 0 var(--wood)}
 .btn:hover{background:#FFFDF6}
 .btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--wood)}
 .btn.primary{background:linear-gradient(#E8C271,#C99A40);border-color:var(--wood-dark);box-shadow:0 3px 0 var(--wood-dark);font-weight:700}
-.btn:disabled{opacity:.45;cursor:default}
+.btn:disabled{opacity:.45;cursor:var(--td-cursor)}
 .btn.small{padding:5px 10px;font-size:13px}
 /* 시작 화면: 가운데 메뉴 창 + 오른쪽 조작법 안내창(메뉴 창 위치는 그대로) */
 .title-wrap{position:relative;width:min(540px,100%)}
@@ -151,7 +151,7 @@ body.playing #tut-card{cursor:auto}
 .title-menu{display:flex;flex-direction:column;gap:10px}
 .menu-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px} /* UI 조정 · 설정: 한 줄에 반씩 */
 .menu-bar[hidden]{display:none}
-.menu-bar{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:52px;font-family:inherit;font-size:17px;font-weight:700;letter-spacing:.04em;color:var(--wood-dark);background:#FBF6EC;border:2px solid var(--wood);border-radius:10px;box-shadow:0 3px 0 var(--wood);cursor:pointer}
+.menu-bar{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:52px;font-family:inherit;font-size:17px;font-weight:700;letter-spacing:.04em;color:var(--wood-dark);background:#FBF6EC;border:2px solid var(--wood);border-radius:10px;box-shadow:0 3px 0 var(--wood);cursor:var(--td-cursor-hover)}
 .menu-bar:hover{background:#FFFDF6}
 .menu-bar:active{transform:translateY(3px);box-shadow:none}
 .menu-bar.primary{background:linear-gradient(#E8C271,#C99A40);border-color:var(--wood-dark);box-shadow:0 3px 0 var(--wood-dark)}
@@ -187,7 +187,7 @@ body.playing #tut-card{cursor:auto}
 .set{display:grid;grid-template-columns:9.5em 1fr;gap:10px 14px;align-items:center;margin:8px 0 18px}
 .set .k{font-size:14px;color:var(--ink-2)}
 .seg{display:flex;flex-wrap:wrap;gap:6px}
-.seg button{font-family:inherit;font-size:13px;padding:6px 11px;border-radius:7px;border:1.5px solid var(--line);background:#FBF6EC;color:var(--ink-2);cursor:pointer}
+.seg button{font-family:inherit;font-size:13px;padding:6px 11px;border-radius:7px;border:1.5px solid var(--line);background:#FBF6EC;color:var(--ink-2);cursor:var(--td-cursor-hover)}
 .seg button.on{border-color:var(--wood);background:var(--brass-hi);color:var(--wood-dark);font-weight:700}
 input[type=range]{width:100%;accent-color:var(--brass)}
 
@@ -406,16 +406,16 @@ input[type=range]{width:100%;accent-color:var(--brass)}
 
 <!-- 서버 연결 라이브러리(Supabase, 버전 고정). 로그인 · 가입에 쓴다(shared/account.js) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
-<script src="../shared/version.js?v=0.1.11"></script>
-<script src="../shared/config.js?v=0.1.11"></script>
-<script src="../shared/songcrypt.js?v=0.1.11"></script>
-<script src="../shared/account.js?v=0.1.11"></script>
-<script src="../shared/chart-format.js?v=0.1.11"></script>
-<script src="../shared/library.js?v=0.1.11"></script>
-<script src="../shared/save.js?v=0.1.11"></script>
-<script src="../shared/ui.js?v=0.1.11"></script>
-<script src="engine.js?v=0.1.11"></script>
-<script src="charts/bundle.js?v=0.1.11"></script>
-<script src="game.js?v=0.1.11"></script>
+<script src="../shared/version.js?v=0.1.12"></script>
+<script src="../shared/config.js?v=0.1.12"></script>
+<script src="../shared/songcrypt.js?v=0.1.12"></script>
+<script src="../shared/account.js?v=0.1.12"></script>
+<script src="../shared/chart-format.js?v=0.1.12"></script>
+<script src="../shared/library.js?v=0.1.12"></script>
+<script src="../shared/save.js?v=0.1.12"></script>
+<script src="../shared/ui.js?v=0.1.12"></script>
+<script src="engine.js?v=0.1.12"></script>
+<script src="charts/bundle.js?v=0.1.12"></script>
+<script src="game.js?v=0.1.12"></script>
 </body>
 </html>

@@ -156,11 +156,12 @@
         var chOpen = opts.save.isUnlocked(ch);
         var border = TDSave.borderOf(r);
         html += '<button class="ss-dcard' + (ch.id === c.id ? " on" : "") + (chOpen ? "" : " locked") + '" data-chart="' + esc(ch.id) + '">' +
-          // 난이도 이름 옆: 최고 보더를 되돌리기 없이 얻었는지(보더가 있을 때만)
-          '<div class="dc-head"><span class="dc-name">' + name + "</span>" + rewindBadge(r) + '<span class="dc-lv">' + TDChart.levelText(ch.level) + "</span></div>" +
+          '<div class="dc-head"><span class="dc-name">' + name + '</span><span class="dc-lv">' + TDChart.levelText(ch.level) + "</span></div>" +
           '<div class="dc-state">' + diffState(ch) + "</div>" +
           '<div class="dc-score">' + (r.clears ? fmt(r.bestScore) : "–") + "</div>" +
           '<div class="dc-badges">' + (r.clears ? rankBadge(r.bestRank) : "") + medalBadge(border) + medalName(border) + "</div>" +
+          // 보더 아래 줄: 최고 보더를 되돌리기 없이 얻었는지(보더가 있을 때만). 칸이 좁아 머리줄에 두면 난이도 이름이 줄바꿈된다
+          '<div class="dc-rewind">' + rewindBadge(r) + "</div>" +
           '<div class="dc-meta">노트 ' + ch.notes.length + (r.bestCombo ? " · 최대 콤보 " + r.bestCombo : "") + "</div></button>";
       });
       return html + "</div>";

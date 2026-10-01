@@ -492,13 +492,9 @@
   var LANE_STYLE_LEFT = { base: "#D29A2E", hi: "#F6D77F", dark: "#8C6118", teeth: 10, line: "rgba(160,110,30,.5)", band: "rgba(210,154,46,.11)", ink: "#6E4C10" };
   var LANE_STYLE_RIGHT = { base: "#3A62AA", hi: "#86A8E6", dark: "#223F75", teeth: 10, line: "rgba(58,98,170,.45)", band: "rgba(58,98,170,.09)", ink: "#223F75" };
   function laneStyle(lane) { return lane < 2 ? LANE_STYLE_LEFT : LANE_STYLE_RIGHT; }
-  // 안쪽 고리는 둘레가 짧아 회전이 느리면(30° 등) 1박 간격 태엽끼리 겹친다. 겹치지 않을 만큼만 그 레인 태엽을 줄인다.
-  // 레인형은 키로만 판정하므로 크기는 보이는 데에만 영향이 있다.
-  function laneGearScale(lane) {
-    var arc = engine.laneRadius(lane) * (engine.degPerBeat() * Math.PI) / 180; // 1박 간격 태엽 중심 사이 거리(근사)
-    return Math.min(1, (0.95 * arc) / (2 * 0.062 * NOTE_SCALE));
-  }
-  var NOTE_SCALE = 1.2; // 노트 크기 배율(태엽·사슬 전부). 에임형 1.5의 80%(09-29). 판정은 키로만 하므로 보이는 크기에만 영향
+  // 노트 크기 배율(태엽·사슬 전부). 에임형 1.5의 64%(10-01, 그전 1.2의 80%). 회전 각도 · 레인과 상관없이 같은 크기로 그린다.
+  // 30°까지는 안쪽 레인 1박 간격 태엽도 겹치지 않고, 그보다 느리면 겹칠 수 있다. 판정은 키로만 하므로 보이는 크기에만 영향
+  var NOTE_SCALE = 0.96;
   var RANK_STYLE = {
     perfectPlus: { text: "PERFECT+", color: "#B97F0A", glow: "rgba(246,215,127,.95)" }, // 퍼펙트+(이론치): 퍼펙트보다 밝은 금빛 + 빛번짐(에임형과 같은 모양)
     perfect: { text: "PERFECT", color: "#A8740E" },
@@ -928,7 +924,7 @@
 
   function drawNoteHead(n, t, alpha) {
     var st = n.state === "idle" && CHORDS.of[n.id] ? CHORD_STYLE : laneStyle(n.lane);
-    var gr = R * 0.062 * NOTE_SCALE * laneGearScale(n.lane);
+    var gr = R * 0.062 * NOTE_SCALE;
     var spin = t * 1.3 * (n.id % 2 ? 1 : -1);
     g.save();
     g.globalAlpha = alpha;
@@ -1855,6 +1851,16 @@
     cursorPx.x = e.clientX;
     cursorPx.y = e.clientY;
   });
+  // 연주 중 마우스를 1.5초 움직이지 않으면 커서를 숨긴다(body.cursor-idle. 숨기는 건 연주 중에만, index.html). 움직이거나 누르면 다시 보인다.
+  var CURSOR_IDLE_MS = 1500;
+  var cursorIdleTimer = 0;
+  function wakeCursor() {
+    document.body.classList.remove("cursor-idle");
+    clearTimeout(cursorIdleTimer);
+    cursorIdleTimer = setTimeout(function () { document.body.classList.add("cursor-idle"); }, CURSOR_IDLE_MS);
+  }
+  ["mousemove", "mousedown", "wheel"].forEach(function (ev) { window.addEventListener(ev, wakeCursor, { passive: true }); });
+  wakeCursor();
   window.addEventListener("blur", function () {
     if ((mode === "playing" || mode === "countdown") && !inTutorialPlay()) pauseGame();
     releaseAllKeys();

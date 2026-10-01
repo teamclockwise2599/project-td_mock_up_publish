@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="shared/ui.css?v=0.1.11">
+<link rel="stylesheet" href="shared/ui.css?v=0.1.12">
 <style>
 :root{--paper:#F3ECDF;--panel:#F8F2E6;--ink:#2B1D12;--ink-2:#5E4834;--mute:#8A7560;--line:#CDB894;--wood:#6B4226;--wood-dark:#3F2616;--brass:#B8862B;--brass-hi:#E2B85A;--great:#2E7D4F;--miss:#A83232}
 *{box-sizing:border-box}
@@ -21,11 +21,11 @@ main[hidden],.note[hidden]{display:none}
 .panel h2{font-family:Cinzel,"Gowun Batang",serif;margin:0 0 4px;color:var(--wood-dark);font-size:22px}
 .panel p{margin:0 0 12px;line-height:1.7;font-size:15px}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-.btn{font-family:inherit;font-size:15px;padding:10px 18px;border-radius:9px;border:2px solid var(--wood);background:#FBF6EC;color:var(--wood-dark);cursor:pointer;box-shadow:0 3px 0 var(--wood)}
+.btn{font-family:inherit;font-size:15px;padding:10px 18px;border-radius:9px;border:2px solid var(--wood);background:#FBF6EC;color:var(--wood-dark);cursor:var(--td-cursor-hover);box-shadow:0 3px 0 var(--wood)}
 .btn:hover{background:#FFFDF6}
 .btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--wood)}
 .btn.primary{background:linear-gradient(#E8C271,#C99A40);border-color:var(--wood-dark);box-shadow:0 3px 0 var(--wood-dark);font-weight:700}
-.btn:disabled{opacity:.45;cursor:default}
+.btn:disabled{opacity:.45;cursor:var(--td-cursor)}
 .btn.small{padding:5px 10px;font-size:13px}
 .main-account{margin-top:18px}
 h1{font-family:Cinzel,"Gowun Batang",serif;color:var(--wood-dark);font-size:30px;margin:0 0 6px;letter-spacing:.06em}
@@ -87,11 +87,11 @@ a.card:active{transform:translateY(3px);box-shadow:0 1px 0 var(--wood)}
 </main>
 <!-- 서버 연결 라이브러리(Supabase, 버전 고정). 로그인 · 가입에 쓴다(shared/account.js) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
-<script src="shared/version.js?v=0.1.11"></script>
-<script src="shared/config.js?v=0.1.11"></script>
-<script src="shared/chart-format.js?v=0.1.11"></script>
-<script src="shared/account.js?v=0.1.11"></script>
-<script src="shared/ui.js?v=0.1.11"></script>
+<script src="shared/version.js?v=0.1.12"></script>
+<script src="shared/config.js?v=0.1.12"></script>
+<script src="shared/chart-format.js?v=0.1.12"></script>
+<script src="shared/account.js?v=0.1.12"></script>
+<script src="shared/ui.js?v=0.1.12"></script>
 <script>
 (function () {
   "use strict";

@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet">
-<link href="../shared/ui.css?v=0.1.11" rel="stylesheet">
+<link href="../shared/ui.css?v=0.1.12" rel="stylesheet">
 <style>
 :root{
   --paper:#F3ECDF; --paper-2:#EBDFC8; --panel:#F8F2E6;
@@ -20,7 +20,7 @@
 html,body{margin:0;height:100%;overflow:hidden}
 body{background:radial-gradient(ellipse at 50% 45%,#F8F2E6 0%,var(--paper) 55%,#E8DCC4 100%);color:var(--ink);
   font-family:"Gowun Batang","Batang","AppleMyungjo",serif;user-select:none;-webkit-user-select:none}
-body.playing{cursor:none}
+body.playing.cursor-idle,body.playing.cursor-idle *{cursor:none!important} /* 연주 중 마우스를 1.5초 움직이지 않으면 커서를 숨긴다(10-01, game.js wakeCursor) */
 canvas#stage{position:fixed;inset:0;width:100vw;height:100vh;display:block;z-index:3;pointer-events:none} /* 시계·노트는 늘 맨 위(점수 등 UI보다 위) */
 canvas#stage-bg{position:fixed;inset:0;width:100vw;height:100vh;display:block;z-index:0;pointer-events:none} /* 구석 장식 톱니는 맨 아래 */
 
@@ -103,13 +103,13 @@ body.danger #danger{animation:dangerPulse 1.8s ease-in-out infinite}
 #rewinds{font-size:12px;color:var(--mute);white-space:nowrap} /* 난이도 옆에 작게 */
 #rewinds b{font-family:Cinzel,serif;font-size:13px;color:var(--wood-dark)}
 body.tutorial #rewinds{display:none}
-#btn-pause{position:fixed;top:14px;right:18px;z-index:2;pointer-events:auto;width:44px;height:44px;border-radius:50%;border:2px solid var(--wood);background:var(--panel);color:var(--wood-dark);font-size:15px;cursor:pointer;box-shadow:0 2px 0 var(--wood-dark)}
+#btn-pause{position:fixed;top:14px;right:18px;z-index:2;pointer-events:auto;width:44px;height:44px;border-radius:50%;border:2px solid var(--wood);background:var(--panel);color:var(--wood-dark);font-size:15px;cursor:var(--td-cursor-hover);box-shadow:0 2px 0 var(--wood-dark)}
 #btn-pause:hover{background:#FFF8EA}
-body.playing #btn-pause{cursor:pointer}
+body.playing #btn-pause{cursor:var(--td-cursor-hover)}
 
 /* 튜토리얼: 점수·라이프·되돌리기·일시정지·보더를 쓰지 않으므로 화면에서도 숨긴다(에임형 09-29 변경 이식). 연주 중에도 카드 위에서는 마우스 커서를 보인다 */
 body.tutorial .hud-score,body.tutorial #hud-acc,body.tutorial #btn-pause,body.tutorial .g-rewind,body.tutorial .g-pause,body.tutorial #border-chips{display:none}
-body.playing #tut-card{cursor:auto}
+body.playing #tut-card{cursor:var(--td-cursor)}
 /* 튜토리얼 아래 레인 키 칸: 누르는 동안 켜진다(시연은 자동 연주가 누르는 키). 자리는 resize가 카드 왼쪽 빈 곳의 가운데 아래로 정한다 */
 #tut-keys{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);z-index:4;display:none;align-items:center;gap:10px;padding:7px 14px;border-radius:12px;background:rgba(248,242,230,.92);border:1.5px solid var(--line);pointer-events:none}
 body.tutorial #tut-keys{display:flex}
@@ -139,11 +139,11 @@ body.tutorial #tut-keys{display:flex}
 .howto .what{color:var(--ink-2)}
 .howto .what b{color:var(--wood-dark)}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-.btn{font-family:inherit;font-size:15px;padding:10px 18px;border-radius:9px;border:2px solid var(--wood);background:#FBF6EC;color:var(--wood-dark);cursor:pointer;box-shadow:0 3px 0 var(--wood)}
+.btn{font-family:inherit;font-size:15px;padding:10px 18px;border-radius:9px;border:2px solid var(--wood);background:#FBF6EC;color:var(--wood-dark);cursor:var(--td-cursor-hover);box-shadow:0 3px 0 var(--wood)}
 .btn:hover{background:#FFFDF6}
 .btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--wood)}
 .btn.primary{background:linear-gradient(#E8C271,#C99A40);border-color:var(--wood-dark);box-shadow:0 3px 0 var(--wood-dark);font-weight:700}
-.btn:disabled{opacity:.45;cursor:default}
+.btn:disabled{opacity:.45;cursor:var(--td-cursor)}
 .btn.small{padding:5px 10px;font-size:13px}
 .ok-mark{color:var(--great);font-weight:700}
 .stack{display:flex;flex-direction:column;gap:10px;align-items:stretch}
@@ -155,7 +155,7 @@ body.tutorial #tut-keys{display:flex}
 .title-menu{display:flex;flex-direction:column;gap:10px}
 .menu-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px} /* UI 조정 · 설정: 한 줄에 반씩 */
 .menu-bar[hidden]{display:none}
-.menu-bar{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:52px;font-family:inherit;font-size:17px;font-weight:700;letter-spacing:.04em;color:var(--wood-dark);background:#FBF6EC;border:2px solid var(--wood);border-radius:10px;box-shadow:0 3px 0 var(--wood);cursor:pointer}
+.menu-bar{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:52px;font-family:inherit;font-size:17px;font-weight:700;letter-spacing:.04em;color:var(--wood-dark);background:#FBF6EC;border:2px solid var(--wood);border-radius:10px;box-shadow:0 3px 0 var(--wood);cursor:var(--td-cursor-hover)}
 .menu-bar:hover{background:#FFFDF6}
 .menu-bar:active{transform:translateY(3px);box-shadow:none}
 .menu-bar.primary{background:linear-gradient(#E8C271,#C99A40);border-color:var(--wood-dark);box-shadow:0 3px 0 var(--wood-dark)}
@@ -190,7 +190,7 @@ body.tutorial #tut-keys{display:flex}
 .set{display:grid;grid-template-columns:9.5em 1fr;gap:10px 14px;align-items:center;margin:8px 0 18px}
 .set .k{font-size:14px;color:var(--ink-2)}
 .seg{display:flex;flex-wrap:wrap;gap:6px}
-.seg button{font-family:inherit;font-size:13px;padding:6px 11px;border-radius:7px;border:1.5px solid var(--line);background:#FBF6EC;color:var(--ink-2);cursor:pointer}
+.seg button{font-family:inherit;font-size:13px;padding:6px 11px;border-radius:7px;border:1.5px solid var(--line);background:#FBF6EC;color:var(--ink-2);cursor:var(--td-cursor-hover)}
 .seg button.on{border-color:var(--wood);background:var(--brass-hi);color:var(--wood-dark);font-weight:700}
 .seg button:disabled{opacity:.45;cursor:not-allowed}
 input[type=range]{width:100%;accent-color:var(--brass)}
@@ -408,16 +408,16 @@ input[type=range]{width:100%;accent-color:var(--brass)}
 
 <!-- 서버 연결 라이브러리(Supabase, 버전 고정). 로그인 · 가입에 쓴다(shared/account.js) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
-<script src="../shared/version.js?v=0.1.11"></script>
-<script src="../shared/config.js?v=0.1.11"></script>
-<script src="../shared/songcrypt.js?v=0.1.11"></script>
-<script src="../shared/account.js?v=0.1.11"></script>
-<script src="../shared/chart-format.js?v=0.1.11"></script>
-<script src="../shared/library.js?v=0.1.11"></script>
-<script src="../shared/save.js?v=0.1.11"></script>
-<script src="../shared/ui.js?v=0.1.11"></script>
-<script src="engine.js?v=0.1.11"></script>
-<script src="charts/bundle.js?v=0.1.11"></script>
-<script src="game.js?v=0.1.11"></script>
+<script src="../shared/version.js?v=0.1.12"></script>
+<script src="../shared/config.js?v=0.1.12"></script>
+<script src="../shared/songcrypt.js?v=0.1.12"></script>
+<script src="../shared/account.js?v=0.1.12"></script>
+<script src="../shared/chart-format.js?v=0.1.12"></script>
+<script src="../shared/library.js?v=0.1.12"></script>
+<script src="../shared/save.js?v=0.1.12"></script>
+<script src="../shared/ui.js?v=0.1.12"></script>
+<script src="engine.js?v=0.1.12"></script>
+<script src="charts/bundle.js?v=0.1.12"></script>
+<script src="game.js?v=0.1.12"></script>
 </body>
 </html>

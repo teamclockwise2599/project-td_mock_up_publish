@@ -5,6 +5,7 @@
 // 파일을 더블클릭해 연 경우(file://)와 공개 페이지(localhost 밖의 웹 주소): <목업>/charts/bundle.js(채보 사본)를 쓴다.
 // 음원: 로컬 서버면 songs/ 폴더, 파일로 열었으면 shared/offline-songs.js(음원 사본, node tools/build-offline.js로 만든다)에 있는 곡은 사본,
 //   그 밖(공개 페이지 · 사본에 없는 곡)은 온라인 서버에서 암호화한 음원을 받아 푼다(shared/account.js downloadSong, 09-30).
+//   받은 암호화 파일은 브라우저 저장소에 보관해 다음 실행부터는 다시 받지 않는다(열쇠는 늘 서버에서, 10-01).
 //   주소에 ?serversongs가 있으면 로컬에서도 서버 음원을 쓴다(올린 음원 확인용).
 (function (root) {
   "use strict";

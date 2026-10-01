@@ -2,8 +2,15 @@
 // 켜 둔 게임은 이 파일을 몇 분마다 다시 읽어, version이 바뀌었으면 "새 버전" 안내를 띄운다(shared/ui.js watchVersion).
 // 그래서 값 부분은 JSON 모양으로 쓴다(키 · 문자열은 큰따옴표, 마지막 항목 뒤 쉼표 없음).
 window.TD_VERSION = {
-  "version": "0.1.12",
+  "version": "0.1.13",
   "notes": [
+    {
+      "version": "0.1.13",
+      "date": "2026-10-01",
+      "items": [
+        "서버 최적화 작업"
+      ]
+    },
     {
       "version": "0.1.12",
       "date": "2026-10-01",
@@ -72,7 +79,7 @@ window.TD_VERSION = {
       "version": "0.1.4",
       "date": "2026-09-30",
       "items": [
-        "커스텀 채보 Chronostasis 내림"
+        "제작중인 채보 가림 처리"
       ]
     },
     {

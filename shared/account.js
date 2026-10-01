@@ -319,15 +319,80 @@
 
   // ---------- 음원(서버, 암호화: shared/songcrypt.js, 표 song_keys + 저장소 songs) ----------
   var SONG_BUCKET = "songs";
+
+  // 받은 음원 보관(10-01): 받은 암호화 파일(.bin)만 브라우저 저장소(IndexedDB)에 둬서 같은 사람이 같은 곡을 다시 받지 않게 한다(서버 전송량).
+  // 열쇠는 저장하지 않고 늘 서버(song_keys, 승인 이상)에서 받는다. 그래서 저장한 파일만으로는 재생되지 않는다(Docs/23 1절 "음원 보호" 그대로).
+  // 음원을 다시 올리면(크기 · 올린 시각이 바뀜) 저장한 것을 버리고 새로 받는다. 저장소를 못 쓰면(막힌 브라우저 등) 서버에서 받기만 한다.
+  // 저장소: { get(id), put(id, 값), remove(id) } → 약속. idbSongStore는 브라우저용, 테스트는 가짜 저장소를 넘긴다.
+  function idbSongStore(factory) {
+    var DB = "td-song-cache";
+    var STORE = "songs";
+    var opening = null;
+    function open() {
+      if (!opening) {
+        opening = new Promise(function (resolve, reject) {
+          if (!factory) throw new Error("브라우저 저장소(IndexedDB)를 쓸 수 없습니다");
+          var req = factory.open(DB, 1);
+          req.onupgradeneeded = function () { req.result.createObjectStore(STORE); };
+          req.onsuccess = function () { resolve(req.result); };
+          req.onerror = function () { reject(req.error); };
+          req.onblocked = function () { reject(new Error("브라우저 저장소가 다른 탭에 막혀 있습니다")); };
+        });
+        opening.catch(function () { opening = null; }); // 여는 데 실패하면 기억하지 않는다(다음에 다시 연다)
+      }
+      return opening;
+    }
+    function run(mode, fn) {
+      return open().then(function (db) {
+        return new Promise(function (resolve, reject) {
+          var tx = db.transaction(STORE, mode);
+          var req = fn(tx.objectStore(STORE));
+          tx.oncomplete = function () { resolve(req.result); };
+          tx.onerror = function () { reject(tx.error); };
+          tx.onabort = function () { reject(tx.error || new Error("브라우저 저장소 작업이 취소됐습니다")); };
+        });
+      });
+    }
+    return {
+      get: function (id) { return run("readonly", function (s) { return s.get(id); }); },
+      put: function (id, value) { return run("readwrite", function (s) { return s.put(value, id); }); },
+      remove: function (id) { return run("readwrite", function (s) { return s.delete(id); }); }
+    };
+  }
+  // 저장해 둔 암호화 파일이 지금 서버 것(row: song_keys 행)과 같으면 그것을 풀고, 아니면 fetchData()로 받아 푼 뒤 저장한다.
+  // 저장한 것이 지금 열쇠로 안 풀리면 지우고 새로 받는다. 저장소 실패는 넘어간다(받기 · 재생은 그대로).
+  function cachedSong(store, id, row, fetchData, decrypt) {
+    var stamp = row.size + "|" + row.uploaded_at;
+    function quiet(fn) { Promise.resolve().then(fn).catch(function () { /* 저장소 실패는 넘어간다 */ }); }
+    function fresh() {
+      return fetchData().then(function (data) {
+        return decrypt(data, row.key).then(function (plain) {
+          quiet(function () { return store.put(id, { stamp: stamp, data: data }); }); // 열쇠는 넣지 않는다
+          return plain;
+        });
+      });
+    }
+    return Promise.resolve().then(function () { return store.get(id); }).then(function (hit) {
+      if (!hit || hit.stamp !== stamp || !hit.data) return fresh();
+      return decrypt(hit.data, row.key).catch(function () {
+        quiet(function () { return store.remove(id); });
+        return fresh();
+      });
+    }, fresh);
+  }
+  var songStore = null;
+
   // 곡 파일 이름(채보의 song 칸) → 풀어 놓은 음원(ArrayBuffer). 승인 이상. 서버에 없으면 code "no-song" 오류.
   function downloadSong(file) {
     return attempt(function () {
       var c = getClient();
-      return c.from("song_keys").select("object_path, key").eq("song_file", file).maybeSingle().then(unwrap).then(function (row) {
+      var server = (root.TD_CONFIG || {}).server || "";
+      if (!songStore) songStore = idbSongStore(root.indexedDB);
+      return c.from("song_keys").select("object_path, key, size, uploaded_at").eq("song_file", file).maybeSingle().then(unwrap).then(function (row) {
         if (!row) { var e = new Error("서버에 이 곡의 음원이 아직 없습니다(" + file + ")"); e.code = "no-song"; throw e; }
-        return c.storage.from(SONG_BUCKET).download(row.object_path).then(unwrap).then(function (blob) {
-          return blob.arrayBuffer();
-        }).then(function (data) { return root.TDSongCrypt.decrypt(data, row.key); });
+        return cachedSong(songStore, server + "/" + row.object_path, row, function () {
+          return c.storage.from(SONG_BUCKET).download(row.object_path).then(unwrap).then(function (blob) { return blob.arrayBuffer(); });
+        }, root.TDSongCrypt.decrypt);
       });
     });
   }
@@ -354,6 +419,7 @@
 
   var api = {
     downloadSong: downloadSong, uploadSong: uploadSong, listSongs: listSongs,
+    idbSongStore: idbSongStore, cachedSong: cachedSong, // 받은 음원 보관(테스트 · 화면 확인에서도 쓴다)
     NAME_MIN: NAME_MIN, NAME_MAX: NAME_MAX, PASSWORD_MIN: PASSWORD_MIN, ROLE_LABEL: ROLE_LABEL, remembered: remembered,
     checkEmail: checkEmail, checkName: checkName, checkPassword: checkPassword, errorText: errorText,
     canPlay: function (acc) { return !!acc && PLAYABLE.indexOf(acc.role) >= 0 && !isBanned(acc); },

@@ -39,6 +39,8 @@ button,input,select{font-family:inherit}
 .ver-banner b{color:var(--wood-dark)}
 #official-chip{font-size:12px;padding:2px 8px;border-radius:20px;border:1.5px solid var(--line);color:var(--ink-2);background:var(--card);white-space:nowrap;flex:none}
 #official-chip.on{border-color:var(--brass);color:#6E4C10;background:#FFF3D6}
+#draft-chip{font-size:12px;padding:2px 8px;border-radius:20px;border:1.5px solid var(--wood);color:var(--wood-dark);background:var(--card);white-space:nowrap;flex:none}
+#draft-chip[hidden],#btn-upload[hidden]{display:none}
 #publish-note{width:100%;font:inherit;font-size:14px;padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;margin:6px 0 4px;resize:vertical}
 #publish-msg{min-height:20px;font-size:13px;margin:6px 0 10px;color:var(--err)}
 /* 배포에 포함(채보 파일 deploy 칸): 켜면 놋쇠색. 공식 채보는 서버에서 받으므로 막는다 */
@@ -212,6 +214,14 @@ canvas#stage{position:absolute;inset:0;width:100%;height:100%;display:block;curs
 .chart-row .d{font-weight:700;color:var(--wood-dark)}
 .chart-row .id{font-size:12px;color:var(--mute);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .load-errors{font-size:12.5px;color:var(--err);margin:4px 0 10px}
+/* 채보 열기의 서버 작업본 칸(10-01): 곡이 섞여 있어 줄마다 제목 · 파일 이름 · 만든 사람 · 저장 시각 */
+.draft-group .sg-head{background:#F6EBCF}
+.draft-row{grid-template-columns:5.2em 3.6em 5.5em minmax(0,1fr) auto}
+.draft-row .dr-main{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.draft-row .dr-main b{color:var(--wood-dark)}
+.draft-row .dr-main small{font-size:12px;color:var(--mute)}
+.draft-group .dr-note{padding:9px 12px;font-size:12.5px;color:var(--mute)}
+.draft-group .dr-note.bad{color:var(--err)}
 /* 자동 저장 백업: 백업마다 불러오기 · 삭제 · 보류 */
 .backup-row{display:grid;grid-template-columns:1fr auto auto auto;gap:6px 8px;align-items:center;padding:9px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);margin-bottom:8px}
 .backup-row .bk-info b{font-family:Cinzel,"Gowun Batang",serif;color:var(--wood-dark);font-size:15px}
@@ -238,6 +248,7 @@ canvas#stage{position:absolute;inset:0;width:100%;height:100%;display:block;curs
   <select id="chart-switch" title="채보 바꾸기(저장하지 않은 변경이 있으면 먼저 묻는다)" hidden></select>
   <span id="val-chip" title="검사 결과"></span>
   <span id="official-chip" hidden></span>
+  <span id="draft-chip" hidden></span>
   <span class="grow"></span>
   <span id="offline-chip" hidden>서버 없이 열림 · 저장 대신 내려받기</span>
   <button class="btn" id="btn-open">열기</button>
@@ -245,6 +256,7 @@ canvas#stage{position:absolute;inset:0;width:100%;height:100%;display:block;curs
   <button class="btn" id="btn-info">정보 수정</button>
   <label id="deploy-box" hidden><input type="checkbox" id="deploy-check"> 배포에 포함</label>
   <button class="btn primary" id="btn-save" title="Ctrl+S">저장</button>
+  <button class="btn" id="btn-upload" hidden>서버에 올리기</button>
   <button class="btn" id="btn-test">테스트 플레이</button>
   <button class="btn" id="btn-publish" hidden>공식 게시</button>
   <button class="btn danger" id="btn-delete">삭제</button>
@@ -423,15 +435,15 @@ canvas#stage{position:absolute;inset:0;width:100%;height:100%;display:block;curs
 
 <!-- 서버 연결 라이브러리(Supabase, 버전 고정). 관리자 이상인지 확인한다(shared/account.js) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
-<script src="../shared/version.js?v=0.1.14"></script>
-<script src="../shared/config.js?v=0.1.14"></script>
-<script src="../shared/songcrypt.js?v=0.1.14"></script>
-<script src="../shared/account.js?v=0.1.14"></script>
-<script src="../shared/chart-format.js?v=0.1.14"></script>
-<script src="../shared/library.js?v=0.1.14"></script>
-<script src="editor-model.js?v=0.1.14"></script>
-<script src="bpm-detect.js?v=0.1.14"></script>
-<script src="../shared/ui.js?v=0.1.14"></script><!-- 새 버전 안내(watchVersion)만 쓴다 -->
-<script src="editor.js?v=0.1.14"></script>
+<script src="../shared/version.js?v=0.2.0"></script>
+<script src="../shared/config.js?v=0.2.0"></script>
+<script src="../shared/songcrypt.js?v=0.2.0"></script>
+<script src="../shared/account.js?v=0.2.0"></script>
+<script src="../shared/chart-format.js?v=0.2.0"></script>
+<script src="../shared/library.js?v=0.2.0"></script>
+<script src="editor-model.js?v=0.2.0"></script>
+<script src="bpm-detect.js?v=0.2.0"></script>
+<script src="../shared/ui.js?v=0.2.0"></script><!-- 새 버전 안내(watchVersion)만 쓴다 -->
+<script src="editor.js?v=0.2.0"></script>
 </body>
 </html>

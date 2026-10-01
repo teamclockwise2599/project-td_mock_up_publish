@@ -2022,33 +2022,54 @@
     document.title = (dirty ? "● " : "") + (chart ? chart.title + " · " : "") + "채보 에디터";
   }
   // 위쪽 막대 채보 바꾸기: 이 목업의 채보 목록(곡별 묶음). 고르면 저장 안 한 변경을 확인한 뒤 연다(09-30, 사용자).
+  // 공개 주소는 서버 작업본도 맨 아래 묶음으로 보인다(값 "draft:<줄 번호>", 10-01).
   var switchSig = "";
   function refreshSwitch() {
     var sel = $("chart-switch");
     var list = (lib && lib.charts ? lib.charts : []).slice().sort(function (a, b) {
       return a.title.localeCompare(b.title) || TDChart.difficultyIndex(a.difficulty) - TDChart.difficultyIndex(b.difficulty) || a.level - b.level;
     });
-    var sig = list.map(function (c) { return c.id + "|" + c.title + "|" + c.difficulty + "|" + c.level; }).join(",") + "#" + (chart ? chart.id : "");
-    sel.hidden = !list.length;
+    var dl = draftSaves() ? drafts.list : [];
+    var openDraftId = dl.length && draftRef ? draftRef.id : null;
+    var cur = openDraftId !== null ? "draft:" + openDraftId : chart ? chart.id : "";
+    var sig = list.map(function (c) { return c.id + "|" + c.title + "|" + c.difficulty + "|" + c.level; }).join(",") +
+      "#" + dl.map(function (d) { return d.id + "|" + d.title + "|" + d.difficulty + "|" + d.level; }).join(",") + "#" + cur;
+    sel.hidden = !list.length && !dl.length;
     if (sig === switchSig) return;
     switchSig = sig;
-    var html = chart && !list.some(function (c) { return c.id === chart.id; }) ? '<option value="">(저장 전 채보)</option>' : ""; // 새로 만들어 아직 목록에 없는 채보
+    var known = openDraftId !== null ? !!findDraftRow(openDraftId) : chart && list.some(function (c) { return c.id === chart.id; });
+    var html = chart && !known ? '<option value="">(저장 전 채보)</option>' : ""; // 새로 만들어 아직 목록에 없는 채보
     var song = null;
     list.forEach(function (c) {
       if (c.songId !== song) { if (song !== null) html += "</optgroup>"; song = c.songId; html += '<optgroup label="' + esc(c.title) + '">'; }
       html += '<option value="' + esc(c.id) + '">' + esc(c.title + " · " + TDChart.difficultyLabel(c.difficulty) + " " + TDChart.levelText(c.level)) + "</option>";
     });
     if (song !== null) html += "</optgroup>";
+    if (dl.length) {
+      html += '<optgroup label="서버 작업본">';
+      dl.forEach(function (d) {
+        html += '<option value="draft:' + d.id + '">' + esc((d.title || d.chart_id) + " · " + TDChart.difficultyLabel(d.difficulty) + " " + TDChart.levelText(d.level) + (d.is_mine ? "" : " · " + d.owner_name)) + "</option>";
+      });
+      html += "</optgroup>";
+    }
     sel.innerHTML = html;
-    sel.value = chart ? chart.id : "";
+    switchCur = known ? cur : "";
+    sel.value = switchCur;
   }
+  var switchCur = ""; // 목록 상자에서 지금 채보를 가리키는 값
   $("chart-switch").addEventListener("change", function () {
     var sel = this;
-    var c = findChart(sel.value);
+    var v = sel.value;
     sel.blur(); // 단축키가 목록 상자로 가지 않게
-    if (!c || (chart && c.id === chart.id)) { sel.value = chart ? chart.id : ""; return; }
-    sel.value = chart ? chart.id : ""; // 확인 전에는 지금 채보를 보인다(취소하면 그대로)
-    guardDirty(function () { openChart(c); });
+    sel.value = switchCur; // 확인 전에는 지금 채보를 보인다(취소하면 그대로)
+    if (!v || v === switchCur) return;
+    if (v.indexOf("draft:") === 0) {
+      var d = findDraftRow(Number(v.slice(6)));
+      if (d) guardDirty(function () { openDraft(d); });
+      return;
+    }
+    var c = findChart(v);
+    if (c) guardDirty(function () { openChart(c); });
   });
   function refreshTitle() {
     $("mode-chip").textContent = MODE_LABEL;
@@ -2063,6 +2084,7 @@
       $("chart-id").textContent = chart.id + ".json";
     }
     refreshOfficial();
+    refreshDraftChip();
     updateDirty();
   }
   function refreshButtons() {
@@ -2072,14 +2094,19 @@
     $("btn-info").disabled = !has;
     $("btn-save").disabled = !has;
     $("btn-test").disabled = !has;
-    $("btn-delete").disabled = !has || !ONLINE;
-    $("btn-delete").title = ONLINE ? "채보 파일을 지웁니다(charts/_deleted/로 옮김)" : "서버 없이 열려 있어 지울 수 없습니다";
-    $("btn-save").textContent = ONLINE ? "저장" : "JSON 내려받기";
-    $("btn-save").title = ONLINE ? "Ctrl+S" : "서버 없이 열려 있어 파일로 내려받습니다 (Ctrl+S)";
+    var toDraft = draftSaves();
+    $("btn-delete").disabled = !has || !(ONLINE || (toDraft && draftRef));
+    $("btn-delete").title = ONLINE ? "채보 파일을 지웁니다(charts/_deleted/로 옮김)" : toDraft ? (draftRef ? "서버 작업본을 지웁니다(되돌릴 수 없음)" : "서버에 저장하지 않은 채보입니다")
+      : "서버 없이 열려 있어 지울 수 없습니다";
+    $("btn-save").textContent = ONLINE || toDraft ? "저장" : "JSON 내려받기";
+    $("btn-save").title = ONLINE ? "Ctrl+S" : toDraft ? serverLabel() + "서버 작업본에 저장합니다 (Ctrl+S)" : "서버 없이 열려 있어 파일로 내려받습니다 (Ctrl+S)";
+    $("btn-upload").hidden = !(ONLINE && canDraft());
+    $("btn-upload").disabled = !has;
+    $("btn-upload").title = serverLabel() + "지금 채보를 서버 작업본으로 올립니다(파일은 그대로). 공개 주소 · 다른 PC 에디터의 「채보 열기」에 나옵니다";
     $("btn-offset-here").disabled = !has;
     $("btn-bpm-auto").disabled = !has;
     renderAutoBpm();
-    $("offline-chip").hidden = ONLINE;
+    $("offline-chip").hidden = ONLINE || toDraft;
   }
   function refreshAll() {
     refreshTitle();
@@ -2111,6 +2138,7 @@
   function openChart(c) {
     if (audio.running) stopPlayback();
     drag = null;
+    draftRef = null; // 서버 작업본에서 열면 openDraft가 다시 잇는다
     chart = JSON.parse(JSON.stringify(c));
     chart.mode = MODE;
     savedJson = JSON.stringify(chart);
@@ -2236,6 +2264,7 @@
   function saveChart() {
     if (!chart) return Promise.resolve(false);
     if (drag) return Promise.resolve(false);
+    if (draftSaves()) return saveToDraft();
     if (!ONLINE) { downloadJson(); return Promise.resolve(false); }
     var sent = JSON.stringify(chart);
     var id = chart.id;
@@ -2277,7 +2306,7 @@
       if (win && !win.closed) win.location.href = url;
       else window.open(url, "_blank");
     }
-    if (!ONLINE) {
+    if (!ONLINE && !draftSaves()) {
       go();
       status("서버 없이 열려 있어 저장하지 못했습니다. 게임은 마지막으로 저장된 채보(bundle.js)로 열립니다", "warn");
       return;
@@ -2287,8 +2316,24 @@
       else if (win) win.close();
     });
   }
+  // 열린 채보를 닫는다(지운 뒤). 화면은 채보 없음 상태가 된다.
+  function closeChart() {
+    if (audio.running) stopPlayback();
+    try { if (chart && localStorage.getItem(LAST_KEY) === chart.id) localStorage.removeItem(LAST_KEY); } catch (e) { /* 무시 */ }
+    chart = null;
+    draftRef = null;
+    savedJson = "";
+    history.clear();
+    revalidate();
+    refreshAll();
+  }
   function deleteChart() {
     if (!chart) return;
+    if (draftSaves()) {
+      if (!draftRef) { status("서버에 저장하지 않은 채보라 지울 것이 없습니다", "warn"); return; }
+      removeDraft(draftRowOf(draftRef), true).then(function (done) { if (done) showOpen(); });
+      return;
+    }
     if (!ONLINE) { status("서버 없이 열려 있어 지울 수 없습니다", "warn"); return; }
     var c = chart;
     confirmBox("「" + c.title + " · " + TDChart.difficultyLabel(c.difficulty) + "」 채보를 지울까요? 파일(" + c.id + ".json)은 charts/_deleted/ 폴더로 옮겨집니다.", "지우기").then(function (ok) {
@@ -2297,13 +2342,7 @@
         dropBackup(c.id);
         lib.charts = lib.charts.filter(function (x) { return x.id !== c.id; });
         refreshSwitch();
-        if (audio.running) stopPlayback();
-        chart = null;
-        savedJson = "";
-        history.clear();
-        try { if (localStorage.getItem(LAST_KEY) === c.id) localStorage.removeItem(LAST_KEY); } catch (e) { /* 무시 */ }
-        revalidate();
-        refreshAll();
+        closeChart();
         status("지웠습니다 · " + c.id + ".json → charts/_deleted/", "ok");
         showOpen();
       }).catch(function (e) { status("지우지 못했습니다: " + (e && e.message ? e.message : e), "err"); });
@@ -2554,7 +2593,7 @@
   function openPublish() {
     if (!chart || !account) return;
     if (issues.some(function (w) { return w.level === "error"; })) { status("검사 오류가 있는 채보는 게시하거나 보낼 수 없습니다. 오른쪽 검사 목록을 확인하세요", "warn"); return; }
-    if (ONLINE && dirty) { status("저장하지 않은 변경이 있습니다. 먼저 저장하세요(Ctrl+S)", "warn"); return; }
+    if ((ONLINE || draftSaves()) && dirty) { status("저장하지 않은 변경이 있습니다. 먼저 저장하세요(Ctrl+S)", "warn"); return; }
     var owner = TDAccount.isOwner(account);
     var row = officialRows[chart.id];
     var name = chart.title + " [" + TDChart.difficultyLabel(chart.difficulty) + "]";
@@ -2601,19 +2640,220 @@
   $("publish-ok").addEventListener("click", doPublish);
   $("publish-cancel").addEventListener("click", function () { hideModal("dlg-publish"); });
 
+  // ---- 서버 작업본(10-01, 사용자) ----
+  // 관리자 이상이 온라인 서버에 둔 작업 중 채보(supabase/schema.sql chart_drafts). 관리자는 자기 것만, 소유자는 모든 사람의 것을 보고 고친다.
+  // 공개 주소(로컬 서버 없이 연 에디터)는 저장 · 새 채보 · 삭제를 작업본으로 한다. 로컬은 「채보 열기」에서 작업본을 열어 Ctrl+S로 파일에 받고,
+  // 「서버에 올리기」로 지금 채보를 작업본으로 올린다(저장은 지금처럼 파일).
+  // draftRef: 지금 채보와 이어진 작업본 { id, owner, ownerName, updatedAt }. 저장할 때 updatedAt을 보내 그 사이 다른 곳에서 저장했는지 서버가 가린다.
+  var LAST_DRAFT_KEY = "td-editor-last-draft-" + MODE;
+  var drafts = { list: [], loaded: false, error: "" };
+  var draftRef = null;
+  function canDraft() { return !!account; }
+  function draftSaves() { return !ONLINE && canDraft(); } // 저장 · 새 채보 · 삭제가 작업본으로 가는가(공개 주소)
+  function serverLabel() {
+    var cfg = window.TD_CONFIG || {};
+    return cfg.serverShown ? "[" + cfg.serverName + "] " : "";
+  }
+  function myId() { return account ? account.id : null; }
+  function lastDraftId() {
+    try { return localStorage.getItem(LAST_DRAFT_KEY); } catch (e) { return null; }
+  }
+  function loadDrafts() {
+    if (!canDraft()) return Promise.resolve();
+    return TDAccount.listDrafts(MODE).then(function (rows) {
+      drafts.list = rows || [];
+      drafts.error = "";
+    }, function (e) {
+      drafts.list = [];
+      drafts.error = TDAccount.errorText(e);
+    }).then(function () {
+      drafts.loaded = true;
+      refreshSwitch();
+    });
+  }
+  function findDraftRow(id) {
+    for (var i = 0; i < drafts.list.length; i++) if (drafts.list[i].id === id) return drafts.list[i];
+    return null;
+  }
+  // 목록에 없으면(방금 만들었는데 목록을 아직 다시 받지 않음) 지금 채보로 채운다
+  function draftRowOf(ref) {
+    return findDraftRow(ref.id) || { id: ref.id, chart_id: chart.id, title: chart.title, difficulty: chart.difficulty, is_mine: ref.owner === myId(), owner_name: ref.ownerName };
+  }
+  // 파일 이름으로 작업본 고르기(테스트 플레이에서 돌아올 때): 마지막으로 연 것 → 내 것 → 아무거나
+  function draftFor(chartId) {
+    var same = drafts.list.filter(function (d) { return d.chart_id === chartId; });
+    var last = lastDraftId();
+    return same.filter(function (d) { return String(d.id) === last; })[0] || same.filter(function (d) { return d.is_mine; })[0] || same[0] || null;
+  }
+  function draftOwnerText(ownerId, ownerName) { return ownerId === myId() ? "" : "(" + ownerName + "의 작업본)"; }
+  function openDraft(row) {
+    status("서버 작업본을 여는 중… · " + row.chart_id);
+    return TDAccount.loadDraft(row.id).then(function (d) {
+      var c = TDChart.normalizeChart(d.data, d.chart_id);
+      c.id = d.chart_id;
+      c.mode = MODE;
+      openChart(c);
+      draftRef = { id: d.id, owner: d.owner_id, ownerName: d.owner_name, updatedAt: d.updated_at };
+      try { localStorage.setItem(LAST_DRAFT_KEY, String(d.id)); } catch (e) { /* 무시 */ }
+      var who = draftOwnerText(d.owner_id, d.owner_name);
+      if (ONLINE) {
+        // 로컬: 파일에는 저장(Ctrl+S)해야 들어간다. 같은 이름 파일과 다르면 저장 안 함(●) 상태로 둔다(백업 불러오기와 같다)
+        var orig = findChart(c.id);
+        if (orig) {
+          var o = JSON.parse(JSON.stringify(orig));
+          o.mode = MODE;
+          savedJson = JSON.stringify(o);
+        } else savedJson = "";
+        refreshAll();
+        status("서버 작업본" + who + "을 열었습니다 · 로컬 파일에는 저장(Ctrl+S)해야 들어갑니다 · " +
+          (orig ? "같은 이름 파일 " + c.id + ".json(노트 " + orig.notes.length + "개)을 덮어씁니다" : c.id + ".json 파일이 새로 생깁니다"), "ok");
+      } else {
+        refreshAll();
+        status("서버 작업본" + who + "을 열었습니다 · 노트 " + c.notes.length + "개 · 마지막 저장 " + clockText(d.updated_at) + (d.updated_by_name ? "(" + d.updated_by_name + ")" : ""), "ok");
+      }
+      return true;
+    }, function (e) {
+      status("서버 작업본을 열지 못했습니다: " + TDAccount.errorText(e), "err");
+      return false;
+    });
+  }
+  // 지금 채보를 작업본으로 보낸다. 이어진 작업본이 있으면 그것(남의 것은 소유자만), 없으면 내 작업본(같은 파일 이름).
+  // 그 사이 다른 곳에서 저장했거나 같은 이름 작업본이 이미 있으면 묻고 덮어쓴다. 돌려주는 값: 보낸 채보(JSON 글), 안 보냈으면 null
+  function putDraft(force) {
+    var ref = draftRef;
+    var c = chart;
+    var sent = JSON.stringify(c);
+    var data = chartData();
+    return TDAccount.saveDraft(MODE, data, { owner: ref ? ref.owner : null, expected: ref ? ref.updatedAt : null, force: force }).then(function (r) {
+      if (chart === c) draftRef = { id: r.id, owner: ref ? ref.owner : myId(), ownerName: ref ? ref.ownerName : account.name, updatedAt: r.updated_at };
+      try { localStorage.setItem(LAST_DRAFT_KEY, String(r.id)); } catch (e) { /* 무시 */ }
+      loadDrafts();
+      return sent;
+    }, function (e) {
+      if (force || !TDAccount.isDraftConflict(e)) throw e;
+      var cf = e.conflict || {};
+      var when = (cf.updated_by ? cf.updated_by + " · " : "") + (cf.updated_at ? clockText(cf.updated_at) : "방금");
+      var text = ref ? "이 작업본을 연 뒤에 다른 곳에서 먼저 저장했습니다(" + when + "). 지금 내용으로 덮어쓸까요? 그쪽에서 바꾼 것은 사라집니다."
+        : "서버에 같은 파일 이름(" + data.id + ")의 작업본이 이미 있습니다(마지막 저장 " + when + "). 지금 내용으로 덮어쓸까요?";
+      return confirmBox(serverLabel() + text, "덮어쓰기").then(function (ok) { return ok ? putDraft(true) : null; });
+    });
+  }
+  // 공개 주소의 저장(Ctrl+S)
+  function saveToDraft() {
+    var id = chart.id;
+    status("서버 작업본에 저장 중…");
+    return putDraft(false).then(function (sent) {
+      if (sent === null) { status("저장하지 않았습니다. 서버 작업본은 그대로입니다", "warn"); return false; }
+      savedJson = sent;
+      dropBackup(id);
+      refreshTitle();
+      refreshButtons();
+      status("서버 작업본에 저장했습니다 · " + serverLabel() + id + draftOwnerText(draftRef ? draftRef.owner : myId(), draftRef ? draftRef.ownerName : ""), "ok");
+      return true;
+    }, function (e) {
+      status("서버 작업본에 저장하지 못했습니다: " + TDAccount.errorText(e), "err");
+      return false;
+    });
+  }
+  // 로컬의 「서버에 올리기」: 지금 화면의 채보(파일에 저장하지 않은 변경 포함)를 작업본으로 올린다. 파일은 그대로.
+  function uploadDraft() {
+    if (!chart || drag || !canDraft()) return;
+    status("서버 작업본으로 올리는 중…");
+    putDraft(false).then(function (sent) {
+      if (sent === null) { status("올리지 않았습니다. 서버 작업본은 그대로입니다", "warn"); return; }
+      refreshTitle();
+      var cfg = window.TD_CONFIG || {};
+      status("서버 작업본으로 올렸습니다 · " + (cfg.serverName || "서버") +
+        (cfg.server === "test" ? " · 공개 주소 에디터는 운영 서버 작업본을 봅니다(운영 서버로 올리려면 주소 뒤에 ?server=live)" : " · 공개 주소 · 다른 PC 에디터의 「채보 열기」에 나옵니다") +
+        (dirty ? " · 로컬 파일에는 아직 저장하지 않았습니다" : ""), "ok");
+    }, function (e) {
+      status("서버 작업본으로 올리지 못했습니다: " + TDAccount.errorText(e), "err");
+    });
+  }
+  // 작업본 지우기(확인 후). closeOpen: 지운 작업본이 열려 있으면 닫는다(위쪽 「삭제」). 돌려주는 값: 지웠으면 true
+  function removeDraft(row, closeOpen) {
+    var name = (row.title || row.chart_id) + " · " + TDChart.difficultyLabel(row.difficulty);
+    return confirmBox(serverLabel() + "서버 작업본 「" + name + "」" + (row.is_mine ? "" : "(" + row.owner_name + "의 작업본)") + "을 지울까요? 서버에서 지우면 되돌릴 수 없습니다.", "지우기").then(function (ok) {
+      if (!ok) return false;
+      return TDAccount.deleteDraft(row.id).then(function () {
+        try { if (lastDraftId() === String(row.id)) localStorage.removeItem(LAST_DRAFT_KEY); } catch (e) { /* 무시 */ }
+        if (draftRef && draftRef.id === row.id) {
+          draftRef = null;
+          if (closeOpen) { dropBackup(chart.id); closeChart(); }
+          else if (draftSaves()) { savedJson = ""; refreshAll(); } // 공개 주소: 열린 채보는 이제 어디에도 저장되어 있지 않다
+          else refreshAll();
+        }
+        status("서버 작업본을 지웠습니다 · " + row.chart_id, "ok");
+        return loadDrafts().then(function () { return true; });
+      }, function (e) {
+        status("서버 작업본을 지우지 못했습니다: " + TDAccount.errorText(e), "err");
+        return false;
+      });
+    });
+  }
+  function refreshDraftChip() {
+    var chip = $("draft-chip");
+    chip.hidden = !chart || !draftRef;
+    if (chip.hidden) return;
+    chip.textContent = "서버 작업본" + (draftRef.owner === myId() ? "" : " · " + draftRef.ownerName);
+    chip.title = serverLabel() + (ONLINE ? "서버 작업본에서 연 채보입니다. 「서버에 올리기」를 누르면 이 작업본에 올립니다" : "저장(Ctrl+S)하면 이 작업본에 저장합니다") +
+      " · 마지막 저장 " + clockText(draftRef.updatedAt);
+  }
+  $("btn-upload").addEventListener("click", uploadDraft);
+
   // ---- 채보 열기 ----
   function lastChartId() {
     try { return localStorage.getItem(LAST_KEY); } catch (e) { return null; }
   }
+  // 「채보 열기」의 서버 작업본 칸(10-01). 공개 주소는 맨 위, 로컬은 파일 목록 아래. 최근에 저장한 것부터.
+  function draftSection() {
+    var box = document.createElement("div");
+    box.className = "song-group draft-group";
+    box.innerHTML = '<div class="sg-head"><b>서버 작업본</b><span>' + esc(serverLabel() + (TDAccount.isOwner(account) ? "모든 관리자의 작업본" : "내 작업본") +
+      (ONLINE ? " · 열면 로컬 파일에는 Ctrl+S로 저장" : "")) + "</span></div>";
+    function note(text, bad) {
+      var p = document.createElement("div");
+      p.className = "dr-note" + (bad ? " bad" : "");
+      p.textContent = text;
+      box.appendChild(p);
+    }
+    if (!drafts.loaded) note("불러오는 중…");
+    else if (drafts.error) note("작업본 목록을 받지 못했습니다: " + drafts.error, true);
+    else if (!drafts.list.length) note("서버에 저장한 작업본이 없습니다. " + (ONLINE ? "채보를 연 뒤 「서버에 올리기」로 올릴 수 있습니다." : "「새 채보」로 만들면 곧바로 여기에 저장됩니다."));
+    var last = lastDraftId();
+    drafts.list.forEach(function (d) {
+      var isCur = !!(chart && draftRef && draftRef.id === d.id);
+      var isLast = String(d.id) === last;
+      var row = document.createElement("div");
+      row.className = "chart-row draft-row" + (isCur ? " cur" : "") + (isLast ? " last" : "");
+      var by = d.updated_by_name && d.updated_by_name !== d.owner_name ? " · " + d.updated_by_name + " 저장" : "";
+      row.innerHTML = '<span class="d">' + esc(TDChart.difficultyLabel(d.difficulty)) + "</span><span>" + TDChart.levelText(d.level) + "</span><span>노트 " + d.note_count + '</span><span class="dr-main">' +
+        (isLast ? '<b class="last-tag">마지막으로 연 채보</b> ' : "") + "<b>" + esc(d.title || d.chart_id) + "</b> <small>" +
+        esc(d.chart_id + (d.is_mine ? "" : " · " + d.owner_name + "의 작업본") + " · " + clockText(d.updated_at) + by) + "</small></span>" +
+        '<button class="btn small danger" data-del title="이 작업본을 서버에서 지웁니다(되돌릴 수 없음)">지우기</button>';
+      row.addEventListener("click", function (e) {
+        if (e.target.closest("[data-del]")) {
+          removeDraft(d, isCur && draftSaves()).then(function (done) { if (done) showOpen(); });
+          return;
+        }
+        if (isCur) { hideModal("dlg-open"); return; }
+        guardDirty(function () { hideModal("dlg-open"); openDraft(d); });
+      });
+      box.appendChild(row);
+    });
+    return box;
+  }
   function showOpen() {
-    $("open-sub").textContent = MODE_LABEL + " 채보 · " + MODE_DIR + "/charts/" + (ONLINE ? "" : " (서버 없이 열려 bundle.js 사본을 읽었습니다)");
+    $("open-sub").textContent = MODE_LABEL + " 채보 · " + (draftSaves() ? "저장은 서버 작업본으로 " + serverLabel() + "(관리자는 자기 것, 소유자는 모든 관리자의 것)"
+      : MODE_DIR + "/charts/" + (ONLINE ? "" : " (서버 없이 열려 bundle.js 사본을 읽었습니다)"));
     var last = lastChartId();
     refreshSwitch(); // 채보 목록을 불러온 뒤 처음 여는 경우
     $("open-errors").innerHTML = (lib.errors || []).map(function (er) { return "읽지 못한 파일: " + esc(er.file) + " · " + esc(er.error); }).join("<br>");
     var list = $("open-list");
     list.innerHTML = "";
-    if (!lib.charts.length) {
-      list.innerHTML = '<p class="note-box">이 목업의 채보가 아직 없습니다. <b>새 채보</b>로 만들면 곧바로 파일로 저장되고 게임 곡 선택 화면에 나타납니다.</p>';
+    if (canDraft()) list.appendChild(draftSection()); // 공개 주소는 맨 위(파일 목록은 배포본 사본뿐), 로컬은 아래에서 맨 끝으로 옮긴다
+    if (!lib.charts.length && !draftSaves()) {
+      list.insertAdjacentHTML("afterbegin", '<p class="note-box">이 목업의 채보가 아직 없습니다. <b>새 채보</b>로 만들면 곧바로 파일로 저장되고 게임 곡 선택 화면에 나타납니다.</p>');
     }
     var groups = {};
     var order = [];
@@ -2647,6 +2887,8 @@
       });
       list.appendChild(box);
     });
+    var dbox = list.querySelector(".draft-group");
+    if (dbox && ONLINE) list.appendChild(dbox); // 로컬: 서버 작업본은 파일 목록 아래
     $("open-close").style.display = chart ? "" : "none";
     showModal("dlg-open");
   }
@@ -2698,6 +2940,7 @@
     $("form-note").innerHTML = editing
       ? "BPM·오프셋을 바꿔도 노트는 <b>박자 위치 그대로</b> 남습니다(초로 치면 함께 움직입니다). 파일 이름은 바꿀 수 없습니다. 이 변경도 Ctrl+Z로 되돌릴 수 있습니다."
       : ONLINE ? "만들면 곧바로 <b>Mockups/" + MODE_DIR + "/charts/&lt;파일 이름&gt;.json</b> 파일로 저장되고, 게임을 켤 때 곡 선택 화면에 나타납니다."
+        : draftSaves() ? "만들면 곧바로 <b>서버 작업본</b>으로 저장됩니다" + esc(serverLabel() ? " " + serverLabel().trim() : "") + ". 관리자는 자기 작업본만, 소유자는 모든 관리자의 작업본을 봅니다. 게임 곡 선택에는 공식 게시해야 나타납니다."
         : "서버 없이 열려 있어 파일이 만들어지지 않습니다. 편집한 뒤 <b>JSON 내려받기</b>로 받아 Mockups/" + MODE_DIR + "/charts/ 폴더에 넣으세요.";
     $("form-msg").textContent = "";
     showUnlockRule();
@@ -2731,13 +2974,14 @@
   function idProblem(id) {
     if (!TDChart.isValidId(id)) return "영문 소문자·숫자·-·_ 만, 64자 이하(첫 글자는 영문·숫자)";
     if (form.kind === "new" && findChart(id)) return "이미 같은 이름의 채보가 있습니다";
+    if (form.kind === "new" && draftSaves() && drafts.list.some(function (d) { return d.is_mine && d.chart_id === id; })) return "이미 같은 이름의 서버 작업본이 있습니다(「채보 열기」에서 여세요)";
     return "";
   }
   function validateIdHint() {
     var el = $("f-id-hint");
     if (form.kind === "edit") { el.textContent = "파일 이름은 바꿀 수 없습니다"; el.className = "hint"; return; }
     var p = idProblem($("f-id").value.trim());
-    el.textContent = p || "Mockups/" + MODE_DIR + "/charts/" + $("f-id").value.trim() + ".json";
+    el.textContent = p || (draftSaves() ? "서버 작업본 · " + $("f-id").value.trim() : "Mockups/" + MODE_DIR + "/charts/" + $("f-id").value.trim() + ".json");
     el.className = "hint" + (p ? " bad" : "");
   }
   $("f-song").addEventListener("change", function () {
@@ -2833,6 +3077,27 @@
     }, v.id);
     c.id = v.id;
     c.mode = MODE;
+    if (draftSaves()) {
+      // 공개 주소: 곧바로 내 서버 작업본으로 저장한다(로컬이 곧바로 파일을 만드는 것과 같게)
+      var data = JSON.parse(TDChart.stringifyChart(c));
+      data.id = c.id;
+      data.mode = MODE;
+      $("form-ok").disabled = true;
+      $("form-msg").textContent = "";
+      TDAccount.saveDraft(MODE, data, {}).then(function (r) {
+        hideModal("dlg-form");
+        openChart(c);
+        draftRef = { id: r.id, owner: myId(), ownerName: account.name, updatedAt: r.updated_at };
+        try { localStorage.setItem(LAST_DRAFT_KEY, String(r.id)); } catch (e) { /* 무시 */ }
+        refreshAll();
+        loadDrafts();
+        status("새 채보를 만들고 서버 작업본에 저장했습니다 · " + serverLabel() + c.id, "ok");
+      }, function (e) {
+        $("form-msg").textContent = TDAccount.isDraftConflict(e) ? "같은 파일 이름의 서버 작업본이 이미 있습니다. 파일 이름을 바꾸거나 「채보 열기」에서 그 작업본을 여세요"
+          : "서버 작업본에 저장하지 못했습니다: " + TDAccount.errorText(e);
+      }).then(function () { $("form-ok").disabled = false; });
+      return;
+    }
     if (!ONLINE) {
       upsertLib(c);
       hideModal("dlg-form");
@@ -2951,10 +3216,14 @@
       if (window.TD_OFFLINE_SONGS || window.TD_SONG_B64) return true;
       return loadScript("../" + MODE_DIR + "/song-data.js");
     });
-    return pre.then(function () { return LIB.load(MODE); }).then(function (res) {
+    return pre.then(function () { return Promise.all([LIB.load(MODE), loadDrafts()]); }).then(function (r) {
+      var res = r[0];
       lib = { charts: res.charts || [], songs: res.songs || [], errors: res.errors || [] };
       lib.charts.forEach(function (c) { c.mode = MODE; });
-      status(MODE_LABEL + " 채보 " + lib.charts.length + "개 · 음원 " + lib.songs.length + "개" + (ONLINE ? "" : " · 서버 없이 열림(저장 대신 내려받기)"));
+      refreshButtons(); // 계정을 확인한 뒤라 서버 작업본 버튼 · 표시가 바뀐다
+      status(MODE_LABEL + " 채보 " + lib.charts.length + "개 · 음원 " + lib.songs.length + "개" +
+        (canDraft() ? " · 서버 작업본 " + (drafts.error ? "못 받음(" + drafts.error + ")" : drafts.list.length + "개") : "") +
+        (ONLINE || canDraft() ? "" : " · 서버 없이 열림(저장 대신 내려받기)"), drafts.error ? "warn" : undefined);
     }).catch(function (e) {
       lib = { charts: [], songs: [], errors: [] };
       status("채보 목록을 읽지 못했습니다: " + (e && e.message ? e.message : e), "err");
@@ -2994,6 +3263,15 @@
     // 주소에 채보가 있으면(테스트 플레이에서 돌아옴 등) 그 채보를 바로 연다. 없으면(게임의 「에디터」) 늘 「채보 열기」를 띄우고
     // 마지막으로 연 채보를 맨 위에 강조한다(09-30, 사용자).
     var want = params.get("chart");
+    // 공개 주소는 저장한 곳이 서버 작업본이므로 작업본에서 먼저 찾는다
+    var d = want && draftSaves() ? draftFor(want) : null;
+    if (d) {
+      openDraft(d).then(function (ok) {
+        if (ok) applyUrlParams();
+        else showOpen();
+      });
+      return;
+    }
     var c = want ? findChart(want) : null;
     if (c) {
       openChart(c);
@@ -3002,7 +3280,7 @@
     }
     applyUrlParams();
     if (want) status("채보를 찾지 못했습니다: " + want, "warn");
-    if (!lib.charts.length) showForm("new");
+    if (!lib.charts.length && !drafts.list.length && !drafts.error) showForm("new");
     else showOpen();
   }
   function boot() {

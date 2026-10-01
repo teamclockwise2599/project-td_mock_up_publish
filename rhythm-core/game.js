@@ -1585,7 +1585,7 @@
     var result = { cleared: cleared, score: s.score, counts: s.counts, maxCombo: s.maxCombo, total: s.total, rewindsUsed: s.rewindsUsed };
     var medal = TDSave.medalOf(result);
     var badges = "";
-    if (cleared) badges += TDUI.rankBadge(TDSave.rankOf(s.score));
+    badges += TDUI.rankBadge(TDSave.rankOf(s.score)); // 게임오버도 점수로 등급을 보인다(10-01)
     if (medal) badges += TDUI.medalBadge(medal) + (TDUI.medalName(medal) ? " <b>" + TDUI.medalName(medal) + "</b>" : "");
     if (cleared) badges += s.rewindsUsed === 0 ? '<span class="badge nr">리와인드 미사용</span>' : '<span class="badge rw">리와인드 사용</span>'; // 횟수는 아래 줄에
     $("result-badges").innerHTML = badges;
@@ -1596,7 +1596,7 @@
       var rec = info.record;
       if (cleared && info.newBest) best = '<span class="up">최고 기록 갱신</span>' + (info.prevBest ? " (이전 " + fmtNum(info.prevBest) + ", +" + fmtNum(s.score - info.prevBest) + ")" : "");
       else if (rec.clears) best = "최고 기록 " + fmtNum(rec.bestScore) + " " + (rec.bestRank || "");
-      else best = "아직 클리어 기록이 없습니다";
+      else best = "아직 클리어 기록이 없습니다" + (rec.bestFail !== null && rec.bestFail !== undefined ? " · 최고 점수 " + fmtNum(rec.bestFail) + " " + TDSave.rankOf(rec.bestFail) + " (FAIL)" : "");
       best += " · 클리어 " + rec.clears + "회"; // 플레이 횟수 대신 클리어 횟수
       if (info.newMedal && medal) best += ' · <span class="up">새 보더 ' + TDSave.MEDAL_LABEL[medal] + "</span>";
       // 랭킹: 공식 채보의 판은 클리어 · 게임오버 모두 서버에 올린다(09-30, 게임오버는 랭킹에 FAIL로)
@@ -1723,14 +1723,16 @@
     }, function (e) { toast("공식 채보를 받지 못했습니다: " + TDAccount.errorText(e), 4000); });
   }
   // 랭킹 상태(shared/ui.js rankingHtml): 채보 id마다 한 번 불러 두고, 곡 선택을 열 때마다 새로 받는다.
+  // 방금 끝낸 판을 올리는 중이면 다 올린 뒤에 받는다(10-01: 결과 화면에서 바로 곡 선택으로 가면 올리기 전 랭킹을 받아 방금 판이 안 보였다).
   var rankCache = {};
+  var uploading = {}; // 채보 id → 기록 올리기 약속(끝나면 지운다)
   function rankingFor(c) {
     if (!TDAccount.me()) return { status: "none" };
     if (c.old) return { status: "old" };
     if (!c.official) return { status: "custom" };
     if (rankCache[c.id]) return rankCache[c.id];
     rankCache[c.id] = { status: "loading" };
-    TDAccount.getRanking(MODE, c.id).then(function (rows) {
+    Promise.resolve(uploading[c.id]).then(function () { return TDAccount.getRanking(MODE, c.id); }).then(function (rows) {
       rankCache[c.id] = { status: "ok", entries: rows || [] };
     }, function (e) {
       rankCache[c.id] = { status: "error", message: TDAccount.errorText(e) };
@@ -1740,15 +1742,18 @@
   // 공식 채보를 클리어하면 기록을 서버에 올린다(규칙 값을 함께 보내, 서버의 지금 규칙과 다르면 거절된다).
   function uploadScore(chart, result, medal, cleared) {
     var el = $("result-upload");
-    TDAccount.submitScore({
-      row: chart.official.row, cleared: !!cleared, score: result.score, grade: cleared ? TDSave.rankOf(result.score) : null, medal: medal, // 게임오버는 등급 없이 FAIL
+    var job = TDAccount.submitScore({
+      row: chart.official.row, cleared: !!cleared, score: result.score, grade: TDSave.rankOf(result.score), medal: medal, // 게임오버도 등급(10-01), 보더는 FAIL
       maxCombo: result.maxCombo, rewindsUsed: result.rewindsUsed, rewindLimit: settings.rewindLimit, rewindPenalty: settings.rewindPenalty
     }).then(function () {
-      delete rankCache[chart.id];
+      if (rankCache[chart.id] && rankCache[chart.id].status !== "loading") delete rankCache[chart.id]; // 받는 중이면 이 판 뒤에 받으므로 둔다
       if (el) el.textContent = "랭킹에 올렸습니다";
     }, function (e) {
       if (el) { el.textContent = "랭킹에 올리지 못했습니다: " + TDAccount.errorText(e); el.className = "no"; }
+    }).then(function () {
+      if (uploading[chart.id] === job) delete uploading[chart.id];
     });
+    uploading[chart.id] = job;
   }
 
   // ================= 곡 선택 =================

@@ -55,6 +55,7 @@
     if (code === "23505" || /duplicate key/i.test(msg)) return "이미 쓰이는 닉네임입니다.";
     if (code === "23514" && /display_name/.test(msg)) return "닉네임은 " + NAME_MIN + "~" + NAME_MAX + "자로 정해 주세요.";
     if (/Failed to fetch|NetworkError|Load failed/i.test(msg)) return "서버에 연결할 수 없습니다. 인터넷 연결을 확인하세요.";
+    if (code === "PGRST202" || /Could not find the function/i.test(msg)) return "서버에 이 기능이 아직 없습니다. 서버에 SQL 변경분(supabase/patch_*.sql)을 실행해야 합니다.";
     return msg || "알 수 없는 오류가 났습니다.";
   }
 
@@ -284,6 +285,32 @@
       return getClient().from("chart_requests").insert({ mode: mode, chart_id: chart.id, title: title, note: note || "", data: chart }).then(unwrap);
     });
   }
+  // ---------- 작업 중 채보(에디터 서버 작업본, 10-01) ----------
+  // 관리자 이상: 자기 것, 소유자는 전부. 서버 함수로만 다룬다(supabase/schema.sql list_drafts · load_draft · save_draft · delete_draft).
+  // 목록: [{ id, owner_id, owner_name, is_mine, chart_id, title, artist, song, song_id, difficulty, level, note_count, updated_at, updated_by_name }]
+  function listDrafts(mode) { return rpc("list_drafts", { p_mode: mode }); }
+  // 하나 열기: { id, owner_id, owner_name, chart_id, data(채보 파일 내용), updated_at, updated_by_name }
+  function loadDraft(id) {
+    return rpc("load_draft", { p_id: id }).then(function (rows) {
+      if (!rows || !rows.length) throw new Error("없거나 열 수 없는 작업본입니다");
+      return rows[0];
+    });
+  }
+  // 저장: opts = { owner(누구의 작업본, 없으면 나), expected(열었을 때 받은 updated_at 글 그대로), force(확인 없이 덮어쓰기) }.
+  // 돌려주는 값: { id, updated_at }. 연 뒤에 다른 곳에서 먼저 저장했으면 거절되고, 오류의 conflict에 { updated_at, updated_by }가 붙는다.
+  function saveDraft(mode, chart, opts) {
+    opts = opts || {};
+    return rpc("save_draft", {
+      p_owner: opts.owner || null, p_mode: mode, p_chart_id: chart.id, p_data: chart,
+      p_expected: opts.expected || null, p_force: !!opts.force
+    }).then(function (rows) { return rows[0]; }, function (e) {
+      if (isDraftConflict(e)) { try { e.conflict = JSON.parse(e.details || "{}"); } catch (x) { e.conflict = {}; } }
+      throw e;
+    });
+  }
+  function isDraftConflict(e) { return !!(e && e.code === "TD409"); }
+  function deleteDraft(id) { return rpc("delete_draft", { p_id: id }); }
+
   function listChartRequests() {
     return attempt(function () {
       return getClient().from("chart_requests").select("id, from_user, mode, chart_id, title, note, data, status, created_at, handled_at")
@@ -432,7 +459,8 @@
     isOwner: function (acc) { return !!acc && acc.role === "owner"; },
     loadOfficialCharts: loadOfficialCharts, loadOfficialAll: loadOfficialAll, publishChart: publishChart, submitScore: submitScore, getRanking: getRanking,
     listMembers: listMembers, setMemberRole: setMemberRole, setBan: setBan, sendChartRequest: sendChartRequest, listChartRequests: listChartRequests, setRequestStatus: setRequestStatus, deleteChartRequest: deleteChartRequest,
-    listOfficialVersions: listOfficialVersions, retireChart: retireChart, resetRanking: resetRanking
+    listOfficialVersions: listOfficialVersions, retireChart: retireChart, resetRanking: resetRanking,
+    listDrafts: listDrafts, loadDraft: loadDraft, saveDraft: saveDraft, isDraftConflict: isDraftConflict, deleteDraft: deleteDraft
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.TDAccount = api;

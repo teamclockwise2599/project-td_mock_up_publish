@@ -57,15 +57,16 @@
         var rw = e.rewinds_used > 0 ? '<span class="rk-rw" title="그 판의 규칙: 되돌리기 감점">리와인드 ' + e.rewinds_used + "회 · 감점 " + fmt(e.rule_rewind_penalty) + "</span>" : "";
         // 첫 줄: 순위 · 이름 · 점수, 둘째 줄: 등급 · 보더 · 리와인드(쓴 판만)
         return '<li' + (e.is_me ? ' class="me"' : "") + '><span class="rk-no">' + e.place + '</span><span class="rk-name">' + esc(e.display_name) + '</span><span class="rk-score">' + fmt(e.score) + "</span>" +
-          '<span class="rk-tags">' + rankBadge(e.grade) + medalBadge(e.medal) + rw + "</span></li>";
+          '<span class="rk-tags">' + rankBadge(e.grade || TDSave.rankOf(e.score)) + medalBadge(e.medal) + rw + "</span></li>"; // 10-01 전에 올린 게임오버 줄은 등급이 비어 있어 점수로 매긴다
       }).join("") + "</ol>";
     } else {
       var text = st.status === "ok" ? RANKING_TEXT.empty : st.status === "error" ? "랭킹을 불러오지 못했습니다: " + (st.message || "") : RANKING_TEXT[st.status] || RANKING_TEXT.none;
       html += '<div class="rk-empty">' + esc(text) + "</div>";
     }
     var r = save.getRecord(c.id);
+    var b = TDSave.bestOf(r); // 클리어가 없으면 게임오버 판 최고 점수(FAIL, 10-01)
     html += '<div class="rk-mine"><span class="rk-k">내 최고 기록</span>' +
-      (r.clears ? '<span class="rk-score">' + fmt(r.bestScore) + "</span>" + rankBadge(r.bestRank) + medalBadge(TDSave.borderOf(r)) : '<span class="rk-none">기록 없음</span>') + "</div>";
+      (b ? '<span class="rk-score">' + fmt(b.score) + "</span>" + rankBadge(b.rank) + medalBadge(TDSave.borderOf(r)) : '<span class="rk-none">기록 없음</span>') + "</div>";
     return html;
   }
 
@@ -155,11 +156,12 @@
         var r = opts.save.getRecord(ch.id);
         var chOpen = opts.save.isUnlocked(ch);
         var border = TDSave.borderOf(r);
+        var shown = TDSave.bestOf(r); // 클리어가 없으면 게임오버 판 최고 점수(10-01)
         html += '<button class="ss-dcard' + (ch.id === c.id ? " on" : "") + (chOpen ? "" : " locked") + '" data-chart="' + esc(ch.id) + '">' +
           '<div class="dc-head"><span class="dc-name">' + name + '</span><span class="dc-lv">' + TDChart.levelText(ch.level) + "</span></div>" +
           '<div class="dc-state">' + diffState(ch) + "</div>" +
-          '<div class="dc-score">' + (r.clears ? fmt(r.bestScore) : "–") + "</div>" +
-          '<div class="dc-badges">' + (r.clears ? rankBadge(r.bestRank) : "") + medalBadge(border) + medalName(border) + "</div>" +
+          '<div class="dc-score">' + (shown ? fmt(shown.score) : "–") + "</div>" +
+          '<div class="dc-badges">' + (shown ? rankBadge(shown.rank) : "") + medalBadge(border) + medalName(border) + "</div>" +
           // 보더 아래 줄: 최고 보더를 되돌리기 없이 얻었는지(보더가 있을 때만). 칸이 좁아 머리줄에 두면 난이도 이름이 줄바꿈된다
           '<div class="dc-rewind">' + rewindBadge(r) + "</div>" +
           '<div class="dc-meta">노트 ' + ch.notes.length + (r.bestCombo ? " · 최대 콤보 " + r.bestCombo : "") + "</div></button>";
@@ -207,16 +209,18 @@
             g.charts.forEach(function (ch) {
               var r = opts.save.getRecord(ch.id);
               var chOpen = opts.save.isUnlocked(ch);
+              var rb = TDSave.bestOf(r);
               html += '<button class="ss-diff' + (ch.id === c.id ? " on" : "") + (chOpen ? "" : " locked") + '" data-chart="' + esc(ch.id) + '">' +
                 '<span class="d-name">' + esc(TDChart.difficultyLabel(ch.difficulty)) + '</span><span class="d-lv">' + TDChart.levelText(ch.level) + "</span>" +
                 '<span class="d-state">' + diffState(ch) + "</span>" +
-                '<span class="d-right">' + (r.clears ? '<span class="d-score">' + fmt(r.bestScore) + "</span>" + rankBadge(r.bestRank) : "") + medalBadge(TDSave.borderOf(r)) + "</span></button>";
+                '<span class="d-right">' + (rb ? '<span class="d-score">' + fmt(rb.score) + "</span>" + rankBadge(rb.rank) : "") + medalBadge(TDSave.borderOf(r)) + "</span></button>";
             });
             html += "</div>";
             // 고른 난이도의 자세한 기록
+            var recBest = TDSave.bestOf(rec);
             html += '<div class="ss-rec">' +
-              '<div class="wide">최고 점수<b>' + (rec.clears ? fmt(rec.bestScore) : "–") + "</b></div>" +
-              "<div>등급<b>" + (rec.bestRank || "–") + "</b></div>" +
+              '<div class="wide">최고 점수<b>' + (recBest ? fmt(recBest.score) + (recBest.fail ? " (FAIL)" : "") : "–") + "</b></div>" +
+              "<div>등급<b>" + (recBest && recBest.rank ? recBest.rank : "–") + "</b></div>" +
               "<div>최대 콤보<b>" + (rec.bestCombo || "–") + "</b></div>" +
               "<div>클리어<b>" + rec.clears + "회</b></div>" +
               "<div>노트<b>" + c.notes.length + "</b></div>" +

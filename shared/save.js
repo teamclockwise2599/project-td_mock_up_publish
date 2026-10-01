@@ -44,9 +44,17 @@
     if (rec.medal > 0) return rec.medal;
     return rec.fails > 0 ? MEDAL.FAIL : MEDAL.NONE;
   }
+  // 곡 선택 · 랭킹 칸에 보일 최고 기록: 클리어가 있으면 클리어 최고 점수 · 등급, 게임오버만 났으면 그 최고 점수 · 점수로 매긴 등급(FAIL), 없으면 null(10-01)
+  function bestOf(rec) {
+    if (!rec) return null;
+    if (rec.clears > 0) return { score: rec.bestScore, rank: rec.bestRank, fail: false };
+    if (rec.bestFail !== null && rec.bestFail !== undefined) return { score: rec.bestFail, rank: rankOf(rec.bestFail), fail: true };
+    return null;
+  }
 
+  // bestFail: 게임오버 판의 최고 점수(10-01, 없으면 null). 클리어 최고 기록(bestScore)과 따로 둔다.
   function emptyRecord() {
-    return { plays: 0, clears: 0, fails: 0, bestScore: 0, bestRank: null, bestRewinds: null, medal: 0, medalNR: 0, bestCombo: 0, lastScore: null, lastCleared: null, lastPlayed: null };
+    return { plays: 0, clears: 0, fails: 0, bestScore: 0, bestRank: null, bestRewinds: null, bestFail: null, medal: 0, medalNR: 0, bestCombo: 0, lastScore: null, lastCleared: null, lastPlayed: null };
   }
   // owner: 이 데이터가 어느 계정 것인가(계정 id, 계정 연결 전 데이터는 null). shared/account.js bindProgress가 정한다.
   function freshData() {
@@ -95,6 +103,8 @@
       return (q.bestScore - p.bestScore) || ((p.bestRewinds === null ? Infinity : p.bestRewinds) - (q.bestRewinds === null ? Infinity : q.bestRewinds));
     })[0];
     if (best) { r.bestScore = best.bestScore; r.bestRank = best.bestRank; r.bestRewinds = best.bestRewinds; }
+    var fails = [x.bestFail, y.bestFail].filter(function (v) { return v !== null && v !== undefined; });
+    r.bestFail = fails.length ? Math.max.apply(null, fails) : null;
     var last = (x.lastPlayed || 0) >= (y.lastPlayed || 0) ? x : y;
     r.lastScore = last.lastScore;
     r.lastCleared = last.lastCleared;
@@ -181,7 +191,10 @@
         if (result.rewindsUsed === 0 && medal > r.medalNR) r.medalNR = medal;
         if (result.maxCombo > r.bestCombo) r.bestCombo = result.maxCombo;
       }
-      if (!result.cleared) r.fails = (r.fails || 0) + 1; // 게임오버(중간에 나간 판은 기록하지 않는다)
+      if (!result.cleared) {
+        r.fails = (r.fails || 0) + 1; // 게임오버(중간에 나간 판은 기록하지 않는다)
+        if (r.bestFail === null || r.bestFail === undefined || result.score > r.bestFail) r.bestFail = result.score;
+      }
       data.records[chartId] = r;
       save();
       var unlocked = before.filter(function (id) {
@@ -221,7 +234,7 @@
     return inst;
   }
 
-  var api = { create: create, fresh: freshData, merge: merge, MEDAL: MEDAL, MEDAL_LABEL: MEDAL_LABEL, MEDAL_SHORT: MEDAL_SHORT, RANKS: RANKS, rankOf: rankOf, rankIndex: rankIndex, medalOf: medalOf, borderOf: borderOf };
+  var api = { create: create, fresh: freshData, merge: merge, MEDAL: MEDAL, MEDAL_LABEL: MEDAL_LABEL, MEDAL_SHORT: MEDAL_SHORT, RANKS: RANKS, rankOf: rankOf, rankIndex: rankIndex, medalOf: medalOf, borderOf: borderOf, bestOf: bestOf };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.TDSave = api;
 })(this);

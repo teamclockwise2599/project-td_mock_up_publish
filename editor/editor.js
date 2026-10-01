@@ -1,6 +1,6 @@
 // 맵 에디터의 화면·입력·소리. 계산은 editor-model.js, 채보 형식은 shared/chart-format.js, 읽기·저장은 shared/library.js가 맡는다.
 // 주소: editor/index.html?mode=core|lanes
-// 주소 값(언제나): chart=<id> 바로 열기, page=<n> n번째 페이지(1부터), snap=<1|2|3|4|6|8>, bpp=<4|8|12|16>, type=<1~4>
+// 주소 값(언제나): chart=<id> 바로 열기, page=<n> n번째 페이지(1부터), snap=<1|2|3|4|6|8|12|16>, bpp=<4|8|12|16>, type=<1~4>
 // 스크린샷 도우미(주소에 shot이 있을 때만): unlock=1 권한 확인 건너뛰기, hover=<노트 번호> 흰색 강조 고정, pointer=<박자>,<레인(0~3)> 커서 흉내
 (function () {
   "use strict";
@@ -538,10 +538,12 @@
   }
 
   // 박자선: 마디(4박) 굵고 진하게, 박 보통, 스냅 칸 가늘고 옅게. 박자 번호는 나무 테 위에.
+  // 1/12 · 1/16은 선이 너무 촘촘해서 1/4박 자리만 스냅 칸 색으로 두고, 나머지는 더 옅게 안쪽 레인(0.30) 바로 앞부터 긋는다.
   function drawGrid() {
     var ps = pageStart();
     var div = prefs.div;
     var steps = ed.bpp * div;
+    var fine = div > 8 ? div / 4 : 1; // 1/4박 한 칸에 든 스냅 칸 수(1/12 → 3, 1/16 → 4)
     g.save();
     g.translate(CX, CY);
     g.lineCap = "butt";
@@ -551,12 +553,13 @@
       var onBeat = i % div === 0;
       var beat = ps + i / div;
       var bar = onBeat && Math.abs(beat % 4) < 1e-6;
-      var r0 = bar ? 0.14 : onBeat ? 0.2 : 0.24;
+      var faint = i % fine !== 0;
+      var r0 = bar ? 0.14 : onBeat ? 0.2 : faint ? 0.27 : 0.24;
       var r1 = bar ? 1.0 : onBeat ? 0.985 : 0.965;
       g.beginPath();
       g.moveTo(sn * r0 * R, cs * r0 * R);
       g.lineTo(sn * r1 * R, cs * r1 * R);
-      g.strokeStyle = bar ? "rgba(42,26,14,.75)" : onBeat ? "rgba(63,38,22,.45)" : "rgba(107,66,38,.27)";
+      g.strokeStyle = bar ? "rgba(42,26,14,.75)" : onBeat ? "rgba(63,38,22,.45)" : faint ? "rgba(107,66,38,.15)" : "rgba(107,66,38,.27)";
       g.lineWidth = bar ? Math.max(2.2, R * 0.0068) : onBeat ? Math.max(1.3, R * 0.0035) : 1;
       g.stroke();
     }

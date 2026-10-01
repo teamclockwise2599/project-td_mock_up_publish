@@ -72,8 +72,8 @@ aside{overflow:auto;padding:10px 10px;min-height:0}
 .seg button{font-size:12px;padding:4px 4px;border-radius:6px;border:1.5px solid var(--line);background:var(--card);color:var(--ink-2);cursor:pointer;flex:1 1 0;min-width:0;white-space:nowrap}
 .seg button.on{border-color:var(--wood);background:var(--brass-hi);color:var(--wood-dark);font-weight:700}
 .seg button:disabled{opacity:.4;cursor:default}
-/* 스냅은 6칸이라 한 줄에 넣으면 칸 밖으로 삐져나와 3칸씩 두 줄로 */
-#snap-seg{display:grid;grid-template-columns:repeat(3,1fr)}
+/* 스냅은 8칸이라 한 줄에 넣으면 칸 밖으로 삐져나와 4칸씩 두 줄로 */
+#snap-seg{display:grid;grid-template-columns:repeat(4,1fr)}
 
 /* 노트 종류 팔레트 */
 #palette{display:grid;grid-template-columns:1fr 1fr;gap:5px}
@@ -423,15 +423,15 @@ canvas#stage{position:absolute;inset:0;width:100%;height:100%;display:block;curs
 
 <!-- 서버 연결 라이브러리(Supabase, 버전 고정). 관리자 이상인지 확인한다(shared/account.js) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
-<script src="../shared/version.js?v=0.1.13"></script>
-<script src="../shared/config.js?v=0.1.13"></script>
-<script src="../shared/songcrypt.js?v=0.1.13"></script>
-<script src="../shared/account.js?v=0.1.13"></script>
-<script src="../shared/chart-format.js?v=0.1.13"></script>
-<script src="../shared/library.js?v=0.1.13"></script>
-<script src="editor-model.js?v=0.1.13"></script>
-<script src="bpm-detect.js?v=0.1.13"></script>
-<script src="../shared/ui.js?v=0.1.13"></script><!-- 새 버전 안내(watchVersion)만 쓴다 -->
-<script src="editor.js?v=0.1.13"></script>
+<script src="../shared/version.js?v=0.1.14"></script>
+<script src="../shared/config.js?v=0.1.14"></script>
+<script src="../shared/songcrypt.js?v=0.1.14"></script>
+<script src="../shared/account.js?v=0.1.14"></script>
+<script src="../shared/chart-format.js?v=0.1.14"></script>
+<script src="../shared/library.js?v=0.1.14"></script>
+<script src="editor-model.js?v=0.1.14"></script>
+<script src="bpm-detect.js?v=0.1.14"></script>
+<script src="../shared/ui.js?v=0.1.14"></script><!-- 새 버전 안내(watchVersion)만 쓴다 -->
+<script src="editor.js?v=0.1.14"></script>
 </body>
 </html>
